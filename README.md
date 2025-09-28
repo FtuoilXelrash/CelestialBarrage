@@ -39,7 +39,6 @@ Transform your Rust server with **spectacular meteor shower events** that rain d
 
 - 🖥️ **Rust Dedicated Server**
 - 🔧 **[Umod (Oxide)](https://umod.org/)** framework
-- 💬 **Optional:** [rServerMessages](https://github.com/FtuoilXelrash/rServerMessages) for Discord integration
 
 ## 🎮 Commands & Usage
 
@@ -174,10 +173,11 @@ The plugin creates `oxide/config/CelestialBarrage.json` with these key settings:
 
 ## 🔗 Plugin Integration
 
-### 💬 Discord Integration (rServerMessages)
-Supports automatic Discord announcements:
-- Event start notifications
-- Configurable message keywords
+### 💬 Discord Integration
+Built-in Discord webhook support:
+- Event start/end notifications
+- Impact logging with rate limiting
+- Configurable public and admin webhooks
 
 ### 🔧 Plugin Development Hook
 

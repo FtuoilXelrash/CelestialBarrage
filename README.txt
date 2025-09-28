@@ -32,7 +32,6 @@ REQUIREMENTS
 
 - Rust Dedicated Server
 - Umod (Oxide) framework
-- Optional: rServerMessages for Discord integration
 
 COMMANDS & USAGE
 
@@ -153,10 +152,11 @@ Low Population (< 50 players):
 
 PLUGIN INTEGRATION
 
-Discord Integration (rServerMessages):
-Supports automatic Discord announcements:
-- Event start notifications
-- Configurable message keywords
+Discord Integration:
+Built-in Discord webhook support:
+- Event start/end notifications
+- Impact logging with rate limiting
+- Configurable public and admin webhooks
 
 Plugin Development Hook:
 
