@@ -232,7 +232,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ACKNOWLEDGMENTS
 
-Special thanks to the Rain of Fire plugin (https://umod.org/plugins/rain-of-fire), which served as inspiration and a valuable learning tool during the development of CelestialBarrage. While CelestialBarrage has evolved into its own unique implementation with advanced features like three intensity levels, Discord integration, and sophisticated configuration options, the foundational concept of meteor events was inspired by this original work.
+Special thanks to the Rain of Fire plugin (https://umod.org/plugins/rain-of-fire) by k1lly0u, which served as inspiration and a valuable learning tool during the development of Celestial Barrage. While Celestial Barrage has evolved into its own unique implementation with advanced features like three intensity levels, Discord integration, and sophisticated configuration options, the foundational concept of meteor events was inspired by this original work.
 
 AUTHOR
 
