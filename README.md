@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
-[![Version](https://img.shields.io/badge/Version-0.0.20-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
+[![Version](https://img.shields.io/badge/Version-0.0.610-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
@@ -18,13 +18,13 @@ Transform your Rust server with **spectacular meteor shower events** that rain d
 ## ✨ Key Features
 
 - ☄️ **Dynamic Meteor Events** - Automatic scheduling with configurable random or fixed timers
-- 🎯 **Three Intensity Levels** - Mild (beginner), Optimal (balanced), Extreme (hardcore)
+- 🎯 **Three Intensity Levels** - Mild (beginner), Medium (balanced), Extreme (hardcore)
 - 💥 **Advanced Rocket System** - Fire rockets, realistic physics, smart spread patterns
 - 💎 **Rewarding Loot System** - Tiered rewards with stones, metal ore, fragments, and more
 - 🔧 **Real-time Configuration** - Change settings without server restart
 - 🌍 **Smart Map Integration** - Respects boundaries, terrain detection, safe zones
 - 🛡️ **Performance Optimized** - Minimal server impact with automatic cleanup
-- 🔗 **Plugin Integration** - Works with PopupNotifications and Discord webhooks
+- 🔗 **Discord Integration** - Works with Discord webhooks
 
 ## 🚀 Quick Installation
 
@@ -39,7 +39,6 @@ Transform your Rust server with **spectacular meteor shower events** that rain d
 
 - 🖥️ **Rust Dedicated Server**
 - 🔧 **[Umod (Oxide)](https://umod.org/)** framework
-- 📢 **Optional:** [PopupNotifications](https://umod.org/plugins/popup-notifications) for enhanced messaging
 - 💬 **Optional:** [rServerMessages](https://github.com/FtuoilXelrash/rServerMessages) for Discord integration
 
 ## 🎮 Commands & Usage
@@ -53,16 +52,13 @@ Transform your Rust server with **spectacular meteor shower events** that rain d
 | `/cb onplayer <player>` | Start optimal event on target player | `/cb onplayer PlayerName` |
 | `/cb random` | Start random map event | `/cb random` |
 | `/cb barrage` | Fire rocket barrage from your position | `/cb barrage` |
-| `/cb intervals <min>` | Change event intervals | `/cb intervals 30` |
-| `/cb damagescale <mult>` | Adjust damage multiplier | `/cb damagescale 0.5` |
-| `/cb droprate <mult>` | Change drop rate multiplier | `/cb droprate 1.5` |
-| `/cb togglemsg` | Toggle event notifications | `/cb togglemsg` |
 
 ### Intensity Variants
 
 | Command | Rockets | Duration | Radius | Best For |
 |---------|---------|----------|--------|----------|
 | `/cb onplayer_mild` | 20 | 240s | 500m | New players, learning |
+| `/cb onplayer_medium` | 45 | 120s | 300m | Balanced gameplay |
 | `/cb onplayer_extreme` | 70 | 30s | 100m | Hardcore, high risk/reward |
 
 ### Console Commands
@@ -102,7 +98,7 @@ The plugin creates `oxide/config/CelestialBarrage.json` with these key settings:
 - **Rockets:** 20
 - **Drops:** Stones (80-120), Metal Ore (25-50)
 
-#### Optimal Settings (Balanced)
+#### Medium Settings (Balanced)
 - **Fire Rocket Chance:** 20%
 - **Radius:** 300m
 - **Duration:** 120 seconds
@@ -177,12 +173,6 @@ The plugin creates `oxide/config/CelestialBarrage.json` with these key settings:
 ```
 
 ## 🔗 Plugin Integration
-
-### 📢 PopupNotifications
-When installed, provides enhanced visual alerts:
-- Screen-centered warnings
-- Rich popup notifications
-- Fallback to chat when unavailable
 
 ### 💬 Discord Integration (rServerMessages)
 Supports automatic Discord announcements:
