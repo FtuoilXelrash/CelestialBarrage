@@ -3,35 +3,51 @@ using Oxide.Core.Plugins;
 using Oxide.Core;
 using UnityEngine;
 using Rust;
-
+using System.Collections;
+using Oxide.Core.Libraries.Covalence;
+using Newtonsoft.Json;
+using System.Text;
+ 
 namespace Oxide.Plugins
 {
-    [Info("CelestialBarrage", "Ftuoil Xelrash", "0.0.80")]
-    [Description("Simulate a meteor strike using rockets falling from the sky")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.610")]
+    [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
         #region Fields
-        [PluginReference]
-        Plugin PopupNotifications;
 
         private Timer EventTimer = null;
         private List<Timer> RocketTimers = new List<Timer>();
         private HashSet<BaseEntity> meteorRockets = new HashSet<BaseEntity>(); // Track our meteor rockets
         private List<MapMarkerGenericRadius> activeMarkers = new List<MapMarkerGenericRadius>(); // Track map markers
         private List<VendingMachineMapMarker> activeVendingMarkers = new List<VendingMachineMapMarker>(); // Track vending markers for hover text
+        private Dictionary<string, float> discordRateLimiter = new Dictionary<string, float>(); // Rate limit Discord messages
+        private Dictionary<string, int> discordMessageCount = new Dictionary<string, int>(); // Track message count per minute
+        private Queue<QueuedDiscordMessage> discordMessageQueue = new Queue<QueuedDiscordMessage>(); // Queue for rate limited messages
+        private Timer discordQueueTimer = null;
+        private bool wasGrenadeLauncherOverride = false; // Track if grenade launcher override occurred
         #endregion
 
         #region Oxide Hooks       
         private void OnServerInitialized()
         {
-            lang.RegisterMessages(Messages, this);
-            LoadVariables();
-            StartEventTimer();
+            try
+            {
+                lang.RegisterMessages(Messages, this);
+                LoadVariables();
+                StartEventTimer();
+                StartDiscordQueueProcessor();
+            }
+            catch (System.Exception ex)
+            {
+                PrintError($"Error during plugin initialization: {ex.Message}");
+            }
         }  
         
         private void Unload()
         {
             StopTimer();
+            discordQueueTimer?.Destroy();
             foreach (var t in RocketTimers)
                 t.Destroy();
             var objects = UnityEngine.Object.FindObjectsOfType<ItemCarrier>();
@@ -45,9 +61,47 @@ namespace Oxide.Plugins
 
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
         {
-            // Check if damage is from one of our meteor rockets
-            if (info?.Initiator != null && meteorRockets.Contains(info.Initiator))
+            // Debug logging to help identify the issue
+            if (configData?.Logging?.LogToConsole == true)
             {
+                // Log all damage events during meteor showers for debugging
+                if (meteorRockets.Count > 0)
+                {
+                    string weaponInfo = info?.WeaponPrefab?.ShortPrefabName ?? "Unknown";
+                    string attackerInfo = info?.Initiator?.ShortPrefabName ?? "Unknown";
+                    Puts($"[DEBUG] Damage event - Weapon: {weaponInfo}, Attacker: {attackerInfo}, Damage: {info?.damageTypes?.Total():F1}, Entity: {entity?.ShortPrefabName}");
+                }
+            }
+            
+            // Check if there are any active meteor rockets nearby first (performance optimization)
+            bool nearMeteorRocket = false;
+            BaseEntity closestRocket = null;
+            float closestDistance = float.MaxValue;
+            
+            foreach (var rocket in meteorRockets)
+            {
+                if (rocket != null && !rocket.IsDestroyed)
+                {
+                    float distance = Vector3.Distance(rocket.transform.position, entity.transform.position);
+                    if (distance < 50f) // Within reasonable blast radius
+                    {
+                        nearMeteorRocket = true;
+                        if (distance < closestDistance)
+                        {
+                            closestDistance = distance;
+                            closestRocket = rocket;
+                        }
+                    }
+                }
+            }
+            
+            // Only process if near a meteor rocket
+            if (nearMeteorRocket)
+            {
+                if (configData?.Logging?.LogToConsole == true)
+                {
+                    Puts($"[DEBUG] Meteor impact detected - Distance: {closestDistance:F1}m, Rocket: {closestRocket?.ShortPrefabName}");
+                }
                 LogMeteorImpact(entity, info);
             }
         }
@@ -57,22 +111,191 @@ namespace Oxide.Plugins
             // Clean up tracking when our rockets explode/die
             if (entity != null && meteorRockets.Contains(entity))
             {
+                if (configData?.Logging?.LogToConsole == true)
+                {
+                    Puts($"[DEBUG] Removing tracked meteor projectile: {entity.ShortPrefabName} (Remaining: {meteorRockets.Count - 1})");
+                }
                 meteorRockets.Remove(entity);
             }
         }
         #endregion
 
         #region Functions
+        private void StartDiscordQueueProcessor()
+        {
+            // Process Discord queue every 5 seconds
+            discordQueueTimer = timer.Repeat(5f, 0, ProcessDiscordQueue);
+        }
+
+        private void ProcessDiscordQueue()
+        {
+            if (!configData.Logging.DiscordRateLimit.EnableRateLimit)
+            {
+                // If rate limiting is disabled, send all queued messages immediately
+                while (discordMessageQueue.Count > 0)
+                {
+                    var queuedMessage = discordMessageQueue.Dequeue();
+                    SendDiscordMessageImmediately(queuedMessage);
+                }
+                return;
+            }
+
+            // Reset message counts every minute
+            float currentTime = UnityEngine.Time.realtimeSinceStartup;
+            var keysToRemove = new List<string>();
+            foreach (var kvp in discordRateLimiter)
+            {
+                if (currentTime - kvp.Value > 60f) // Reset after 1 minute
+                {
+                    keysToRemove.Add(kvp.Key);
+                }
+            }
+            foreach (var key in keysToRemove)
+            {
+                discordRateLimiter.Remove(key);
+                discordMessageCount.Remove(key);
+            }
+
+            // Process queued messages within rate limits
+            var messagesToProcess = new List<QueuedDiscordMessage>();
+            while (discordMessageQueue.Count > 0 && messagesToProcess.Count < 3) // Process max 3 at a time
+            {
+                messagesToProcess.Add(discordMessageQueue.Dequeue());
+            }
+
+            foreach (var queuedMessage in messagesToProcess)
+            {
+                if (CanSendDiscordMessage(queuedMessage.MessageType))
+                {
+                    SendDiscordMessageImmediately(queuedMessage);
+                }
+                else
+                {
+                    // Put it back in queue if still rate limited
+                    discordMessageQueue.Enqueue(queuedMessage);
+                    break; // Stop processing to avoid infinite loop
+                }
+            }
+        }
+
+        private bool CanSendDiscordMessage(string messageType)
+        {
+            if (!configData.Logging.DiscordRateLimit.EnableRateLimit)
+                return true;
+
+            float currentTime = UnityEngine.Time.realtimeSinceStartup;
+            string rateLimitKey = messageType;
+
+            // Check if we've hit the per-minute limit
+            if (discordMessageCount.ContainsKey(rateLimitKey))
+            {
+                if (discordMessageCount[rateLimitKey] >= configData.Logging.DiscordRateLimit.MaxImpactsPerMinute)
+                {
+                    return false; // Hit per-minute limit
+                }
+            }
+
+            // Check cooldown between messages
+            if (discordRateLimiter.ContainsKey(rateLimitKey))
+            {
+                float timeSinceLastMessage = currentTime - discordRateLimiter[rateLimitKey];
+                if (timeSinceLastMessage < configData.Logging.DiscordRateLimit.ImpactMessageCooldown)
+                {
+                    return false; // Still in cooldown
+                }
+            }
+
+            return true;
+        }
+
+        private void QueueDiscordMessage(string webhookUrl, string message, bool isAdmin, string messageType)
+        {
+            try
+            {
+                var queuedMessage = new QueuedDiscordMessage
+                {
+                    WebhookUrl = webhookUrl,
+                    Message = message,
+                    IsAdmin = isAdmin,
+                    MessageType = messageType,
+                    QueuedTime = UnityEngine.Time.realtimeSinceStartup
+                };
+
+                if (CanSendDiscordMessage(messageType))
+                {
+                    // Send immediately if not rate limited
+                    SendDiscordMessageImmediately(queuedMessage);
+                }
+                else
+                {
+                    // Queue the message
+                    discordMessageQueue.Enqueue(queuedMessage);
+                
+                    // Enhanced logging for queue status
+                    if (configData.Logging.LogToConsole)
+                    {
+                        Puts($"[DISCORD QUEUE] Message queued due to rate limiting. Queue size: {discordMessageQueue.Count}");
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                PrintError($"Error queuing Discord message: {ex.Message}");
+            }
+        }
+
+        private void SendDiscordMessageImmediately(QueuedDiscordMessage queuedMessage)
+        {
+            // Update rate limiting tracking
+            if (configData.Logging.DiscordRateLimit.EnableRateLimit)
+            {
+                float currentTime = UnityEngine.Time.realtimeSinceStartup;
+                string rateLimitKey = queuedMessage.MessageType;
+                
+                discordRateLimiter[rateLimitKey] = currentTime;
+                
+                if (!discordMessageCount.ContainsKey(rateLimitKey))
+                    discordMessageCount[rateLimitKey] = 0;
+                discordMessageCount[rateLimitKey]++;
+            }
+
+            // Calculate queue delay for display
+            float queueDelay = UnityEngine.Time.realtimeSinceStartup - queuedMessage.QueuedTime;
+            
+            // Send the message with queue info passed separately for proper embed formatting
+            if (queueDelay > 5f)
+            {
+                SendDiscordEmbedWithQueueInfo(queuedMessage.WebhookUrl, queuedMessage.Message, queuedMessage.IsAdmin, queueDelay, discordMessageQueue.Count);
+            }
+            else
+            {
+                SendDiscordEmbedDirect(queuedMessage.WebhookUrl, queuedMessage.Message, queuedMessage.IsAdmin);
+            }
+            
+            // Log when processing queued messages
+            if (queueDelay > 5f && configData.Logging.LogToConsole)
+            {
+                Puts($"[DISCORD QUEUE] Sent queued message (delayed {queueDelay:F0}s). {discordMessageQueue.Count} messages remaining in queue.");
+            }
+        }
+
         private void StartEventTimer()
         {
-            if (configData.Options.EnableAutomaticEvents)
+            try
             {
-                if (configData.Options.EventTimers.UseRandomTimer)
+                if (configData.Options.EnableAutomaticEvents)
                 {
-                    var random = RandomRange(configData.Options.EventTimers.RandomTimerMin, configData.Options.EventTimers.RandomTimerMax);
-                    EventTimer = timer.Once(random * 60, () => { StartRandomOnMap(); StartEventTimer(); });
+                    if (configData.Options.EventTimers.UseRandomTimer)
+                    {
+                        var random = RandomRange(configData.Options.EventTimers.RandomTimerMin, configData.Options.EventTimers.RandomTimerMax);
+                        EventTimer = timer.Once(random * 60, () => { StartRandomOnMap(); StartEventTimer(); });
+                    }
+                    else EventTimer = timer.Repeat(configData.Options.EventTimers.EventInterval * 60, 0, () => StartRandomOnMap());
                 }
-                else EventTimer = timer.Repeat(configData.Options.EventTimers.EventInterval * 60, 0, () => StartRandomOnMap());
+            }
+            catch (System.Exception ex)
+            {
+                PrintError($"Error starting event timer: {ex.Message}");
             }
         }
         private void StopTimer()
@@ -81,13 +304,13 @@ namespace Oxide.Plugins
                 EventTimer.Destroy();
         }
 
-        private void StartRandomOnMap()
+        private bool CheckPerformanceAndPlayerCount(string eventType = "Event")
         {
             // Check minimum player requirement
             if (configData?.Options?.MinimumPlayerCount != null && BasePlayer.activePlayerList.Count < configData.Options.MinimumPlayerCount)
             {
-                Puts($"METEOR SHOWER SKIPPED: Not enough players online ({BasePlayer.activePlayerList.Count} < {configData.Options.MinimumPlayerCount})");
-                return; 
+                LogMessage($"CELESTIAL BARRAGE SKIPPED\nNot enough players online ({BasePlayer.activePlayerList.Count} < {configData.Options.MinimumPlayerCount})\n{eventType}", "admin");
+                return false; 
             }
 
             // Check performance monitoring
@@ -96,10 +319,19 @@ namespace Oxide.Plugins
                 float currentFPS = 1f / UnityEngine.Time.unscaledDeltaTime;
                 if (currentFPS < configData.Options.PerformanceMonitoring.MinimumFPS)
                 {
-                    Puts($"METEOR SHOWER CANCELLED: Low FPS detected ({currentFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS})");
-                    return;
+                    LogMessage($"CELESTIAL BARRAGE CANCELLED\nLow FPS detected ({currentFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS})\n{eventType}", "admin");
+                    return false;
                 }
             }
+
+            return true;
+        }
+
+        private void StartRandomOnMap()
+        {
+            // Use centralized performance and player count check
+            if (!CheckPerformanceAndPlayerCount("Automatic Event"))
+                return;
 
             float mapsize = (TerrainMeta.Size.x / 2) - 600f;
 
@@ -108,22 +340,31 @@ namespace Oxide.Plugins
 
             Vector3 callAt = new Vector3(randomX, 0f, randomY);
 
-            // Randomly select intensity for automatic events
-            // 50% Optimal, 30% Mild, 20% Extreme
-            ConfigData.Settings selectedSetting;
-            int randomIntensity = UnityEngine.Random.Range(1, 101);
-            
-            if (randomIntensity <= 50)
-                selectedSetting = configData.z_IntensitySettings.Settings_Optimal;
-            else if (randomIntensity <= 80)
-                selectedSetting = configData.z_IntensitySettings.Settings_Mild;
-            else
-                selectedSetting = configData.z_IntensitySettings.Settings_Extreme;
-
-            StartRainOfFire(callAt, selectedSetting, "Automatic Event");
+            // Use the random intensity selection wrapper
+            var selectedSetting = GetRandomIntensitySetting();
+            StartRainOfFire(callAt, selectedSetting.setting, "Automatic Event");
         }
+
+        private (ConfigData.Settings setting, string intensity) GetRandomIntensitySetting()
+        {
+            // Randomly select intensity for events
+            // 50% Mild, 30% Medium, 20% Extreme
+            int randomIntensity = UnityEngine.Random.Range(1, 101);
+
+            if (randomIntensity <= 50)
+                return (configData.z_IntensitySettings.Settings_Mild, "Mild");
+            else if (randomIntensity <= 80)
+                return (configData.z_IntensitySettings.Settings_Medium, "Medium");
+            else
+                return (configData.z_IntensitySettings.Settings_Extreme, "Extreme");
+        }
+
         private bool StartOnPlayer(string playerName, ConfigData.Settings setting, string eventType)
         {
+            // Check performance and player count before starting
+            if (!CheckPerformanceAndPlayerCount(eventType))
+                return false;
+
             BasePlayer player = GetPlayerByName(playerName);
 
             if (player == null)
@@ -132,10 +373,48 @@ namespace Oxide.Plugins
             StartRainOfFire(player.transform.position, setting, eventType);
             return true;
         }
+
+        private bool StartRandomOnPlayer(string playerName, string eventType)
+        {
+            // Check performance and player count before starting
+            if (!CheckPerformanceAndPlayerCount(eventType))
+                return false;
+
+            BasePlayer player = GetPlayerByName(playerName);
+
+            if (player == null)
+                return false;
+
+            var randomSetting = GetRandomIntensitySetting();
+            StartRainOfFire(player.transform.position, randomSetting.setting, eventType);
+            return true;
+        }
+
+        private void StartRandomOnPosition(Vector3 position, string eventType)
+        {
+            // Check performance and player count before starting
+            if (!CheckPerformanceAndPlayerCount(eventType))
+                return;
+
+            var randomSetting = GetRandomIntensitySetting();
+            StartRainOfFire(position, randomSetting.setting, eventType);
+        }
+
         private void StartBarrage(Vector3 origin, Vector3 direction) => timer.Repeat(configData.BarrageSettings.RocketDelay, configData.BarrageSettings.NumberOfRockets, () => SpreadRocket(origin, direction));
 
         private void StartRainOfFire(Vector3 origin, ConfigData.Settings setting, string eventType = "Manual")
         {
+            // ALWAYS check FPS before starting ANY event
+            if (configData?.Options?.PerformanceMonitoring?.EnableFPSCheck == true)
+            {
+                float currentFPS = 1f / UnityEngine.Time.unscaledDeltaTime;
+                if (currentFPS < configData.Options.PerformanceMonitoring.MinimumFPS)
+                {
+                    LogMessage($"CELESTIAL BARRAGE BLOCKED\nLow FPS detected ({currentFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS})\n{eventType}", "admin");
+                    return; // Block the event completely
+                }
+            }
+
             float radius = setting.Radius;
             int numberOfRockets = setting.RocketAmount;
             float duration = setting.Duration;
@@ -148,12 +427,12 @@ namespace Oxide.Plugins
             string intensity = "Unknown";
             if (ReferenceEquals(setting, configData.z_IntensitySettings.Settings_Mild))
                 intensity = "Mild";
-            else if (ReferenceEquals(setting, configData.z_IntensitySettings.Settings_Optimal))
-                intensity = "Optimal";
+            else if (ReferenceEquals(setting, configData.z_IntensitySettings.Settings_Medium))
+                intensity = "Medium";
             else if (ReferenceEquals(setting, configData.z_IntensitySettings.Settings_Extreme))
                 intensity = "Extreme";
 
-            // Log meteor shower start to console
+            // Log celestial barrage start to console
             string gridRef = GetGridReference(origin);
             Vector3 groundPos = GetGroundPosition(origin);
             string teleportCmd = $"teleportpos {groundPos.x:F1} {groundPos.y:F1} {groundPos.z:F1}";
@@ -161,15 +440,19 @@ namespace Oxide.Plugins
             // Show warning countdown if enabled
             if (configData.Options.WarningCountdown.EnableWarning)
             {
-                if (configData.Options.NotifyEvent)
-                {
-                    if (PopupNotifications)
-                        PopupNotifications.Call("CreatePopupNotification", $"Meteor shower incoming in {configData.Options.WarningCountdown.CountdownSeconds} seconds!");
-                    else PrintToChat($"Meteor shower incoming in {configData.Options.WarningCountdown.CountdownSeconds} seconds!");
-                }
 
                 // Wait for countdown before starting
                 timer.Once(configData.Options.WarningCountdown.CountdownSeconds, () => {
+                    // Check FPS again after countdown delay
+                    if (configData?.Options?.PerformanceMonitoring?.EnableFPSCheck == true)
+                    {
+                        float delayedFPS = 1f / UnityEngine.Time.unscaledDeltaTime;
+                        if (delayedFPS < configData.Options.PerformanceMonitoring.MinimumFPS)
+                        {
+                            LogMessage($"CELESTIAL BARRAGE CANCELLED AFTER COUNTDOWN\nLow FPS detected ({delayedFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS})\n{eventType}", "admin");
+                            return; // Block the event after countdown too
+                        }
+                    }
                     StartMeteorShowerWithEffects(origin, setting, eventType, intensity, gridRef, teleportCmd, intervals, numberOfRockets, duration, radius);
                 });
             }
@@ -182,12 +465,43 @@ namespace Oxide.Plugins
 
         private void StartMeteorShowerWithEffects(Vector3 origin, ConfigData.Settings setting, string eventType, string intensity, string gridRef, string teleportCmd, float intervals, int numberOfRockets, float duration, float radius)
         {
-            Puts($"========== METEOR SHOWER STARTED ==========");
-            Puts($"Type: {eventType} ({intensity})");
-            Puts($"Location: ({origin.x:F0}, {origin.z:F0}) Grid: {gridRef}");
-            Puts($"Stats: {numberOfRockets} rockets, {duration}s duration, {radius}m radius");
-            Puts($"Teleport: {teleportCmd}");
-            Puts($"==========================================");
+            string startMessage = $"========== METEOR SHOWER STARTED ==========\n" +
+                                $"Type: {eventType} ({intensity})\n" +
+                                $"Location: ({origin.x:F0}, {origin.z:F0}) Grid: {gridRef}\n" +
+                                $"Stats: {numberOfRockets} rockets, {duration}s duration, {radius}m radius\n" +
+                                $"Teleport: {teleportCmd}\n" +
+                                $"==========================================";
+
+            // Send enhanced Discord embeds to admin
+            SendEnhancedDiscordMessage(true, eventType, intensity, gridRef, numberOfRockets, duration, radius, origin, teleportCmd);
+
+            // Send public Discord message if enabled
+            if (configData.Logging.LogToPublicDiscord && IsValidWebhookUrl(configData.Logging.PublicWebhookURL))
+            {
+                SendPublicDiscordEmbed($"Celestial barrage started at {gridRef}!", intensity, gridRef, true);
+            }
+
+            // Send in-game notifications (independent of Discord)
+            if (configData.Logging.ShowInGameMessages && configData.Options.NotifyEvent)
+            {
+                // Broadcast location info to all players
+                foreach (var player in BasePlayer.activePlayerList)
+                {
+                    switch (intensity.ToLower())
+                    {
+                        case "mild":
+                            player.ChatMessage($"<color=#32CD32>CELESTIAL BARRAGE (Mild)</color> started at grid <color=#FFFFFF>{gridRef}</color>");
+                            break;
+                        case "extreme":
+                            player.ChatMessage($"<color=#DC143C>CELESTIAL BARRAGE (Extreme)</color> started at grid <color=#FFFFFF>{gridRef}</color>");
+                            break;
+                        case "medium":
+                        default:
+                            player.ChatMessage($"<color=#FFD700>CELESTIAL BARRAGE (Medium)</color> started at grid <color=#FFFFFF>{gridRef}</color>");
+                            break;
+                    }
+                }
+            }
 
             // Create map marker if enabled
             if (configData.Options.MapMarkers.EnableMapMarkers)
@@ -195,44 +509,231 @@ namespace Oxide.Plugins
                 CreateMapMarker(origin, intensity, duration);
             }
 
-            // Call hook for rServerMessages to detect meteor shower
-            Interface.CallHook("OnMeteorShowerStarted");
 
             timer.Repeat(intervals, numberOfRockets, () => RandomRocket(origin, radius, setting));
             
-            // Schedule the end event hook to fire after all rockets have been spawned
-            timer.Once(duration, () => {
-                Puts($"========== METEOR SHOWER ENDED ===========");
-                Puts($"Type: {eventType} ({intensity})");
-                Puts($"Location: ({origin.x:F0}, {origin.z:F0}) Grid: {gridRef}");
-                Puts($"Teleport: {teleportCmd}");
-                Puts($"==========================================");
+            // Schedule the end event hook to fire after all rockets have been spawned + 15 second buffer
+            timer.Once(duration + 15f, () => {
+                string endMessage = $"========== METEOR SHOWER ENDED ===========\n" +
+                                  $"Type: {eventType} ({intensity})\n" +
+                                  $"Location: ({origin.x:F0}, {origin.z:F0}) Grid: {gridRef}\n" +
+                                  $"Teleport: {teleportCmd}\n" +
+                                  $"==========================================";
+
+                // Send enhanced Discord end embed to admin
+                SendEnhancedDiscordMessage(false, eventType, intensity, gridRef, numberOfRockets, duration, radius, origin, teleportCmd);
+                
+                // Send public Discord end message if enabled
+                if (configData.Logging.LogToPublicDiscord && IsValidWebhookUrl(configData.Logging.PublicWebhookURL))
+                {
+                    SendPublicDiscordEmbed($"Celestial barrage ended at {gridRef}", intensity, gridRef, false);
+                }
+                
+                // Send in-game notifications (independent of Discord)
+                if (configData.Logging.ShowInGameMessages && configData.Options.NotifyEvent)
+                {
+                    // Broadcast end to all players
+                    foreach (var player in BasePlayer.activePlayerList)
+                    {
+                        player.ChatMessage($"<color=#20B2AA>Celestial barrage ended at grid {gridRef}</color>");
+                    }
+                }
                 
                 // Remove map marker if it exists
                 // Markers auto-remove via timer, no manual cleanup needed
-                
-                Interface.CallHook("OnMeteorShowerEnded");
             });
-        }      
+        }
+
+        private void SendEnhancedDiscordMessage(bool isStart, string eventType, string intensity, string gridRef, int numberOfRockets, float duration, float radius, Vector3 origin, string teleportCmd)
+        {
+            // Only send if admin Discord is enabled
+            if (!configData.Logging.LogToPrivateDiscord || !IsValidWebhookUrl(configData.Logging.PrivateAdminWebhookURL))
+                return;
+
+            float currentFPS = 1f / UnityEngine.Time.unscaledDeltaTime;
+            int playersOnline = BasePlayer.activePlayerList.Count;
+
+            var embed = new object();
+
+            if (isStart)
+            {
+                // Enhanced Started Message - WITH PROPER SECTION SPACING
+                embed = new
+                {
+                    title = GetIntensityIcon(intensity) + " Celestial Barrage Event",
+                    description = "🟢 **STARTED**",
+                    color = GetIntensityColor(intensity, true),
+                    fields = new[]
+                    {
+                        new { name = "⚡ **Event Information**", value = "", inline = false },
+                        new { name = "", value = $"🎯 **Event Type:** `{eventType} ({intensity})`", inline = false },
+                        new { name = "", value = $"📍 **Grid Location:** `{gridRef}`", inline = false },
+                        
+                        // SPACING BETWEEN SECTIONS
+                        new { name = "", value = "", inline = false },
+                        
+                        new { name = "📊 **Event Statistics**", value = "", inline = false },
+                        new { name = "", value = $"🚀 **Rocket Count:** `{numberOfRockets}`", inline = false },
+                        new { name = "", value = $"⏱️ **Duration:** `{duration}s`", inline = false },
+                        new { name = "", value = $"📏 **Impact Radius:** `{radius}m`", inline = false },
+                        
+                        // SPACING BETWEEN SECTIONS
+                        new { name = "", value = "", inline = false },
+                        
+                        new { name = "⚙️ **Server Status**", value = "", inline = false },
+                        new { name = "", value = $"🖥️ **Server FPS:** `{currentFPS:F1}`", inline = false },
+                        new { name = "", value = $"👥 **Players Online:** `{playersOnline}`", inline = false },
+                        
+                        // SPACING BETWEEN SECTIONS
+                        new { name = "", value = "", inline = false },
+                        
+                        new { name = "🗺️ **Location Data**", value = "", inline = false },
+                        new { name = "", value = $"🔗 **Teleport Command:** `{teleportCmd}`", inline = false }
+                    },
+                    timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                    footer = new
+                    {
+                        text = "Celestial Barrage v0.0.516 • Live Event Monitoring",
+                        icon_url = "https://cdn.discordapp.com/emojis/1234567890123456789.png"
+                    }
+                };
+            }
+            else
+            {
+                // Enhanced Ended Message - WITH PROPER SECTION SPACING
+                embed = new
+                {
+                    title = "🌟 Celestial Barrage Event",
+                    description = "🔴 **COMPLETED**",
+                    color = 0x27AE60, // Success green
+                    fields = new[]
+                    {
+                        new { name = "📋 **Event Summary**", value = "", inline = false },
+                        new { name = "", value = $"🎯 **Event Type:** `{eventType} ({intensity})`", inline = false },
+                        new { name = "", value = $"📍 **Grid Location:** `{gridRef}`", inline = false },
+                        
+                        // SPACING BETWEEN SECTIONS
+                        new { name = "", value = "", inline = false },
+                        
+                        new { name = "🗺️ **Location Data**", value = "", inline = false },
+                        new { name = "", value = $"🔗 **Teleport Command:** `{teleportCmd}`", inline = false }
+                    },
+                    timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                    footer = new
+                    {
+                        text = "Celestial Barrage v0.0.570 • Event Complete",
+                        icon_url = "https://cdn.discordapp.com/emojis/1234567890123456789.png"
+                    }
+                };
+            }
+
+            var payload = new
+            {
+                username = "Celestial Barrage Monitor",
+                avatar_url = "https://cdn.discordapp.com/emojis/1234567890123456789.png",
+                embeds = new[] { embed }
+            };
+
+            string json = JsonConvert.SerializeObject(payload);
+            var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
+
+            webrequest.Enqueue(configData.Logging.PrivateAdminWebhookURL, json, (code, response) =>
+            {
+                if (code != 200 && code != 204)
+                {
+                    PrintError($"Failed to send enhanced Discord embed to Admin webhook. Response code: {code}");
+                    if (configData.Logging.LogToConsole)
+                    {
+                        Puts($"Admin Discord webhook error response: {response}");
+                    }
+                }
+            }, this, Core.Libraries.RequestMethod.POST, headers);
+        }
+
+        private string GetIntensityIcon(string intensity)
+        {
+            switch (intensity.ToLower())
+            {
+                case "mild":
+                    return "💫"; // Changed from 🌿 to 💫
+                case "medium":
+                    return "⚡"; // Electric energy
+                case "extreme":
+                    return "🔥"; // Intense fire
+                default:
+                    return "☄️"; // Default meteor
+            }
+        }
+
+        private int GetIntensityColor(string intensity, bool isStart)
+        {
+            if (isStart)
+            {
+                switch (intensity.ToLower())
+                {
+                    case "mild":
+                        return 0x2ECC71; // Emerald green
+                    case "medium":
+                        return 0xF39C12; // Orange
+                    case "extreme":
+                        return 0xE74C3C; // Crimson red
+                    default:
+                        return 0x3498DB; // Blue
+                }
+            }
+            else
+            {
+                return 0x27AE60; // Success green for completed events
+            }
+        }
 
         private void RandomRocket(Vector3 origin, float radius, ConfigData.Settings setting)
         {
-            bool isFireRocket = false;
-            Vector2 rand = UnityEngine.Random.insideUnitCircle;
-            Vector3 offset = new Vector3(rand.x * radius, 0, rand.y * radius);
-
-            Vector3 direction = (Vector3.up * -2.0f + Vector3.right).normalized;
-            Vector3 launchPos = origin + offset - direction * 200;
-
-            if (RandomRange(1, setting.FireRocketChance) == 1)
-                isFireRocket = true;
-
-            BaseEntity rocket = CreateRocket(launchPos, direction, isFireRocket);
-            if (setting.ItemDropControl.EnableItemDrop)
+            try
             {
-                var comp = rocket.gameObject.AddComponent<ItemCarrier>();
-                comp.SetCarriedItems(setting.ItemDropControl.ItemsToDrop);
-                comp.SetDropMultiplier(configData.Options.GlobalDropMultiplier);
+                bool isFireRocket = false;
+                Vector2 rand = UnityEngine.Random.insideUnitCircle;
+                Vector3 offset = new Vector3(rand.x * radius, 0, rand.y * radius);
+
+                Vector3 direction = (Vector3.up * -2.0f + Vector3.right).normalized;
+                Vector3 launchPos = origin + offset - direction * 200;
+
+                if (RandomRange(1, setting.FireRocketChance) == 1)
+                    isFireRocket = true;
+
+                BaseEntity rocket = CreateRocket(launchPos, direction, isFireRocket);
+
+                // Check if rocket creation failed
+                if (rocket == null)
+                {
+                    PrintWarning("Failed to create meteor rocket - skipping this rocket spawn");
+                    return;
+                }
+
+                if (setting.ItemDropControl.EnableItemDrop)
+                {
+                    var comp = rocket.gameObject.AddComponent<ItemCarrier>();
+                    comp.SetCarriedItems(setting.ItemDropControl.ItemsToDrop);
+                    comp.SetDropMultiplier(configData.Options.GlobalDropMultiplier);
+                }
+
+                // If grenade launcher override occurred, spawn bonus original projectile
+                if (wasGrenadeLauncherOverride)
+                {
+                    timer.Once(UnityEngine.Random.Range(1f, 3f), () => {
+                        // Create random offset position
+                        Vector2 bonusRand = UnityEngine.Random.insideUnitCircle;
+                        Vector3 bonusOffset = new Vector3(bonusRand.x * radius, 0, bonusRand.y * radius);
+                        Vector3 bonusLaunchPos = origin + bonusOffset - direction * 200;
+
+                        // Spawn another random projectile (easiest approach)
+                        RandomRocket(origin, radius, setting);
+                    });
+                }
+            }
+            catch (System.Exception ex)
+            {
+                PrintError($"Error creating rocket: {ex.Message}");
             }
         }
 
@@ -240,18 +741,84 @@ namespace Oxide.Plugins
         {
             var barrageSpread = configData.BarrageSettings.RocketSpread;
             direction = Quaternion.Euler(UnityEngine.Random.Range((float)(-(double)barrageSpread * 0.5), barrageSpread * 0.5f), UnityEngine.Random.Range((float)(-(double)barrageSpread * 0.5), barrageSpread * 0.5f), UnityEngine.Random.Range((float)(-(double)barrageSpread * 0.5), barrageSpread * 0.5f)) * direction;
-            CreateRocket(origin, direction, false);
+            BaseEntity rocket = CreateRocket(origin, direction, false);
+            
+            // Check if rocket creation failed
+            if (rocket == null)
+            {
+                PrintWarning("Failed to create barrage rocket - skipping this rocket spawn");
+                return;
+            }
         }
 
         private BaseEntity CreateRocket(Vector3 startPoint, Vector3 direction, bool isFireRocket)
         {
-            ItemDefinition projectileItem;
+            ItemDefinition projectileItem = null;
+            wasGrenadeLauncherOverride = false; // Reset flag
          
             if (isFireRocket)
-                projectileItem = ItemManager.FindItemDefinition("ammo.rocket.fire");
-            else projectileItem = ItemManager.FindItemDefinition("ammo.rocket.basic");
+            {
+                // 1% MLRS, 40% fire rocket, 59% catapult incendiary boulder
+                float roll = UnityEngine.Random.Range(0f, 1f);
+                if (roll < 0.01f)
+                    projectileItem = ItemManager.FindItemDefinition("ammo.rocket.mlrs");
+                else if (roll < 0.41f) // 0.01 + 0.40 = 0.41
+                    projectileItem = ItemManager.FindItemDefinition("ammo.rocket.fire");
+                else
+                    projectileItem = ItemManager.FindItemDefinition("catapult.ammo.incendiary");
+            }
+            else  
+            {
+                // 20% basic, 20% hv, 20% smoke rocket, 40% catapult boulder
+                float roll = UnityEngine.Random.Range(0f, 1f);
+                if (roll < 0.2f)
+                    projectileItem = ItemManager.FindItemDefinition("ammo.rocket.basic");
+                else if (roll < 0.4f)
+                    projectileItem = ItemManager.FindItemDefinition("ammo.rocket.hv");
+                else if (roll < 0.6f)
+                    projectileItem = ItemManager.FindItemDefinition("ammo.rocket.smoke");
+                else
+                    projectileItem = ItemManager.FindItemDefinition("catapult.ammo.boulder");
+            }
 
+            // 5% chance to override with grenade launcher (50/50 smoke or HE)
+            if (UnityEngine.Random.Range(0f, 1f) < 0.05f)
+            {
+                wasGrenadeLauncherOverride = true; // Set flag
+                if (UnityEngine.Random.Range(0f, 1f) < 0.5f)
+                    projectileItem = ItemManager.FindItemDefinition("ammo.grenadelauncher.smoke");
+                else
+                    projectileItem = ItemManager.FindItemDefinition("ammo.grenadelauncher.he");
+            }
+
+            // VALIDATION: Fallback to basic rocket if item not found
+            if (projectileItem == null)
+            {
+                PrintWarning("Failed to find projectile item, falling back to basic rocket");
+                projectileItem = ItemManager.FindItemDefinition("ammo.rocket.basic");
+                
+                // If even basic rocket fails, try one more fallback
+                if (projectileItem == null)
+                {
+                    PrintError("Critical: Cannot find any rocket ammo items! Meteor event cancelled.");
+                    return null; // Return null to indicate failure
+                }
+            }
+
+            // Debug logging for projectile creation
+            if (configData?.Logging?.LogToConsole == true)
+            {
+                Puts($"[DEBUG] Creating projectile: {projectileItem.shortname}");
+            }
+
+            // Validate component exists
             ItemModProjectile component = projectileItem.GetComponent<ItemModProjectile>();
+            if (component == null)
+            {
+                PrintError($"Critical: {projectileItem.shortname} has no ItemModProjectile component!");
+                return null;
+            }
+
             BaseEntity entity = GameManager.server.CreateEntity(component.projectileObject.resourcePath, startPoint, new Quaternion(), true);
 
             TimedExplosive timedExplosive = entity.GetComponent<TimedExplosive>();
@@ -266,7 +833,7 @@ namespace Oxide.Plugins
             // Add visual effects if enabled (simplified approach)
             if (configData.Options.VisualEffects.EnableParticleTrails)
             {
-                AddVisualTrail(entity);
+                AddVisualTrail(entity, projectileItem.shortname);
             }
 
             serverProjectile.InitializeVelocity(direction.normalized * 25);
@@ -275,20 +842,116 @@ namespace Oxide.Plugins
             // Track this rocket as one of ours
             meteorRockets.Add(entity);
             
+            // Debug logging for tracking
+            if (configData?.Logging?.LogToConsole == true)
+            {
+                Puts($"[DEBUG] Tracking meteor projectile: {entity.ShortPrefabName} (Total tracked: {meteorRockets.Count})");
+            }
+            
             return entity;
         }
 
-        private void AddVisualTrail(BaseEntity rocket)
+        private void AddVisualTrail(BaseEntity rocket, string projectileType)
         {
-            // Create a simple visual effect using existing Rust effects
-            // This spawns a fire effect that follows the rocket
-            timer.Repeat(0.1f, 30, () => {
+            string effectPath = GetTrailEffectForProjectile(projectileType);
+            
+            // Skip if no effect specified
+            if (string.IsNullOrEmpty(effectPath))
+                return;
+                
+            float baseFrequency = GetTrailFrequencyForProjectile(projectileType);
+            int iterations = GetTrailDurationForProjectile(projectileType);
+            
+            // Apply randomization to ALL projectile types - each rocket gets unique timing
+            float frequency = Mathf.Max(0f, baseFrequency + UnityEngine.Random.Range(-0.3f, 0.3f));
+            
+            timer.Repeat(frequency, iterations, () => {
                 if (rocket != null && !rocket.IsDestroyed)
                 {
-                    // Spawn small fire effect at rocket position for visual trail
-                    Effect.server.Run("assets/bundled/prefabs/fx/explosions/explosion_01.prefab", rocket.transform.position, Vector3.up, null, false);
+                    Effect.server.Run(effectPath, rocket.transform.position, Vector3.up, null, false);
                 }
             });
+        }
+
+        private string GetTrailEffectForProjectile(string projectileType)
+        {
+            switch (projectileType)
+            {
+                case "ammo.rocket.fire":
+                    return "assets/bundled/prefabs/fx/gas_explosion_small.prefab"; // Bigger explosion for fire
+                case "ammo.rocket.hv": 
+                    return "assets/content/vehicles/mlrs/effects/pfx_mlrs_backfire.prefab";
+                case "ammo.rocket.mlrs":
+                    return "assets/content/vehicles/mlrs/effects/pfx_mlrs_backfire.prefab";
+                case "ammo.rocket.basic":
+                    return "assets/bundled/prefabs/fx/build/promote_toptier.prefab";
+                case "catapult.ammo.incendiary":
+                    return "assets/bundled/prefabs/fx/fire/fire_v2.prefab";
+                case "ammo.rocket.smoke":
+                    return "assets/bundled/prefabs/fx/fire/fire_v3.prefab";
+                case "catapult.ammo.boulder":
+                    return "assets/bundled/prefabs/fx/weapons/landmine/landmine_explosion.prefab";
+                case "ammo.grenadelauncher.smoke":
+                    return "assets/content/effects/weather/pfx_lightning_medium.prefab";                
+                case "ammo.grenadelauncher.he":
+                    return "assets/content/effects/weather/pfx_lightning_strong.prefab";  
+                default:
+                    return "assets/bundled/prefabs/fx/build/promote_toptier.prefab"; // Standard fallback
+            }
+        }
+
+        private float GetTrailFrequencyForProjectile(string projectileType)
+        {
+            switch (projectileType)
+            {
+                case "ammo.rocket.hv": 
+                    return 0.95f;
+                case "ammo.rocket.mlrs":
+                    return 0.95f;
+                case "ammo.rocket.fire":
+                    return 0.95f;
+                case "ammo.rocket.basic":
+                    return 0.45f;                
+                case "ammo.grenadelauncher.he":
+                    return 0.95f;
+                case "catapult.ammo.incendiary":
+                    return 0.25f;
+                case "ammo.rocket.smoke":
+                    return 0.15f;
+                case "ammo.grenadelauncher.smoke":
+                    return 0.95f;
+                case "catapult.ammo.boulder":
+                    return 2.5f;
+                default:
+                    return 0.45f; // Standard fallback
+            }
+        }
+
+        private int GetTrailDurationForProjectile(string projectileType)
+        {
+            switch (projectileType)
+            {
+                case "ammo.rocket.hv": 
+                    return 5;
+                case "ammo.rocket.mlrs":
+                    return 5;
+                case "ammo.rocket.fire":
+                    return 5;
+                case "ammo.rocket.smoke":
+                    return 45;                
+                case "ammo.grenadelauncher.smoke":
+                    return 10;
+                case "catapult.ammo.boulder":
+                    return 6;                
+                case "catapult.ammo.incendiary":
+                    return 30;
+                case "ammo.rocket.basic":
+                    return 30;                
+                case "ammo.grenadelauncher.he":
+                    return 10;                
+                default:
+                    return 15;
+            }
         }
 
         private void ScaleAllDamage(List<DamageTypeEntry> damageTypes, float scale)
@@ -304,13 +967,53 @@ namespace Oxide.Plugins
             string entityType = "Unknown";
             string ownerInfo = "";
             bool isPlayerStructure = false;
+            bool isPlayer = false;
+            string damageSource = "";
+            
+            // Determine what weapon/projectile caused the damage
+            if (info?.WeaponPrefab != null)
+            {
+                damageSource = info.WeaponPrefab.ShortPrefabName;
+            }
+            
+            // Check if damage is too low to log (configurable threshold)
+            // BUT allow catapult impacts even with 0 damage since they may cause structural damage differently
+            float totalDamage = info?.damageTypes?.Total() ?? 0f;
+            bool isCatapultImpact = damageSource.Contains("boulder") || damageSource.Contains("catapult");
+            bool isGrenadeImpact = damageSource.Contains("40mm") || damageSource.Contains("grenade");
+            
+            if (totalDamage < configData.Logging.MinimumDamageThreshold && !isCatapultImpact && !isGrenadeImpact)
+            {
+                // Damage too low and not a special projectile type - don't log this impact
+                if (configData?.Logging?.LogToConsole == true)
+                {
+                    Puts($"[DEBUG] Impact filtered due to low damage: {totalDamage:F1} < {configData.Logging.MinimumDamageThreshold:F1}");
+                }
+                return;
+            }
+            
+            // Enhanced NPC filtering - check for known NPC types first
+            if (IsNPCEntity(entity))
+            {
+                // This is an NPC - don't log it
+                return;
+            }
             
             // Determine what was hit
             if (entity is BasePlayer)
             {
                 var player = entity as BasePlayer;
+                
+                // Additional check to filter out NPC players (scientists, etc.)
+                if (player.IsNpc || player.userID < 76561197960265728L)
+                {
+                    // This is an NPC player - don't log it
+                    return;
+                }
+                
                 entityType = "Player";
-                ownerInfo = $" ({player.displayName})";
+                ownerInfo = player.displayName;
+                isPlayer = true;
                 
                 // Screen shake effect for the hit player if enabled
                 if (configData.Options.VisualEffects.EnableScreenShake)
@@ -324,7 +1027,7 @@ namespace Oxide.Plugins
                 isPlayerStructure = true;
                 var ownerPlayer = BasePlayer.FindByID(entity.OwnerID);
                 entityType = entity.ShortPrefabName;
-                ownerInfo = ownerPlayer != null ? $" (Owner: {ownerPlayer.displayName})" : $" (OwnerID: {entity.OwnerID})";
+                ownerInfo = ownerPlayer != null ? ownerPlayer.displayName : $"OwnerID: {entity.OwnerID}";
                 
                 // Screen shake for nearby players if enabled
                 if (configData.Options.VisualEffects.EnableScreenShake)
@@ -334,22 +1037,123 @@ namespace Oxide.Plugins
             }
             else
             {
-                // Natural/NPC entity
-                entityType = entity.ShortPrefabName;
+                // Natural/unowned entity - don't log these
+                return;
             }
 
-            // Only log and fire hook for players or player structures
-            if (entity is BasePlayer || isPlayerStructure)
+            // Log and fire hook for players or player structures only
+            if (isPlayer || isPlayerStructure)
             {
-                string damageInfo = $"Damage: {info.damageTypes.Total():F1}";
+                string damageInfo = $"Damage: {totalDamage:F1}";
                 Vector3 pos = entity.transform.position;
-                string posInfo = $"Position: {pos.x:F0}, {pos.y:F0}, {pos.z:F0}";
+                string teleportCmd = $"teleportpos {pos.x:F1} {pos.y:F1} {pos.z:F1}";
                 
-                Puts($"METEOR IMPACT: {entityType}{ownerInfo} | {damageInfo} | {posInfo}");
+                string impactMessage;
+                if (isPlayer)
+                {
+                    impactMessage = $"METEOR IMPACT: {entityType}\nPlayer: {ownerInfo}\nWeapon: {damageSource}\n{damageInfo}\n{teleportCmd}";
+                }
+                else
+                {
+                    impactMessage = $"METEOR IMPACT: {entityType}\nOwner: {ownerInfo}\nWeapon: {damageSource}\n{damageInfo}\n{teleportCmd}";
+                }
+                
+                // Enhanced debug logging
+                if (configData?.Logging?.LogToConsole == true)
+                {
+                    string projectileType = "Unknown";
+                    if (damageSource.Contains("rocket")) projectileType = "Rocket";
+                    else if (isCatapultImpact) projectileType = "Catapult";
+                    else if (isGrenadeImpact) projectileType = "Grenade";
+                    
+                    Puts($"[DEBUG] LOGGING IMPACT - Type: {projectileType}, Weapon: {damageSource}, Damage: {totalDamage:F1}");
+                }
+                
+                // Log to console/admin always
+                LogMessage(impactMessage, "admin");
+                
+                // Send Discord message based on new config settings
+                bool shouldSendDiscord = false;
+                if (isPlayer && configData.Logging.DiscordImpactSettings.LogPlayerImpacts)
+                    shouldSendDiscord = true;
+                else if (isPlayerStructure && configData.Logging.DiscordImpactSettings.LogStructureImpacts)
+                    shouldSendDiscord = true;
+                
+                if (shouldSendDiscord && configData.Logging.LogToPrivateDiscord && IsValidWebhookUrl(configData.Logging.PrivateAdminWebhookURL))
+                {
+                    QueueDiscordMessage(configData.Logging.PrivateAdminWebhookURL, impactMessage, true, "impact");
+                }
                 
                 // Fire the hook for other plugins
-                Interface.CallHook("OnMeteorImpact", entity, info, entityType, ownerInfo);
+                Interface.CallHook("OnCelestialBarrageImpact", entity, info, entityType, ownerInfo);
             }
+        }
+
+        private bool IsNPCEntity(BaseCombatEntity entity)
+        {
+            if (entity == null) return false;
+            
+            // Check if it's an NPC player first
+            if (entity is BasePlayer player)
+            {
+                return player.IsNpc || player.userID < 76561197960265728L;
+            }
+            
+            // Check for common NPC entity types by prefab name
+            string prefabName = entity.ShortPrefabName.ToLower();
+            
+            // List of known NPC entities that should be filtered
+            string[] npcPrefabs = {
+                "scientist",           // Scientists
+                "murderer",           // Murderer NPCs
+                "bandit",             // Bandit NPCs
+                "dweller",            // Tunnel dwellers
+                "scarecrow",          // Scarecrows
+                "zombie",             // Zombies (if any)
+                "bear",               // Bears
+                "wolf",               // Wolves
+                "chicken",            // Chickens
+                "stag",               // Deer/Stags
+                "boar",               // Boars
+                "horse",              // Horses
+                "ridablehorse",       // Ridable horses
+                "shark",              // Sharks
+                "simpleshark",        // Simple sharks
+                "bradley",            // Bradley APC
+                "patrolhelicopter",   // Patrol helicopter
+                "ch47",               // Chinook helicopter
+                "cargoship",          // Cargo ship
+                "oilfireball",        // Oil rig fireball
+                "heavyscientist",     // Heavy scientists
+                "scientistnpc",       // Scientist NPCs
+                "tunneldweller",      // Tunnel dwellers
+                "underwaterdweller",  // Underwater dwellers
+                "npc",                // Generic NPC
+                "pet"                 // Pets
+            };
+            
+            // Check if the entity prefab name contains any NPC identifiers
+            foreach (string npcType in npcPrefabs)
+            {
+                if (prefabName.Contains(npcType))
+                {
+                    return true;
+                }
+            }
+            
+            // Additional check for entities that might be NPCs but have OwnerIDs
+            // (like tamed animals or NPCs spawned by other plugins)
+            if (entity.OwnerID != 0)
+            {
+                // Check if the "owner" is actually an NPC rather than a real player
+                var owner = BasePlayer.FindByID(entity.OwnerID);
+                if (owner != null && (owner.IsNpc || owner.userID < 76561197960265728L))
+                {
+                    return true;
+                }
+            }
+            
+            return false;
         }
 
         private void ApplyScreenShake(BasePlayer player, float intensity)
@@ -378,7 +1182,7 @@ namespace Oxide.Plugins
             {
                 string gridRef = GetGridReference(position);
                 
-                // Create a colored circle marker FIRST (like RaidableBases/Sputnik)
+                // Create a colored circle marker FIRST
                 var radiusMarker = GameManager.server.CreateEntity("assets/prefabs/tools/map/genericradiusmarker.prefab", position) as MapMarkerGenericRadius;
                 
                 if (radiusMarker != null)
@@ -392,28 +1196,25 @@ namespace Oxide.Plugins
                         case "mild":
                             // Green circle
                             radiusMarker.color1 = new Color(0f, 1f, 0f, 1f);
-                            radiusMarker.color2 = new Color(0f, 1f, 0f, 1f);
-                            radiusMarker.radius = 0.15f;
-                            radiusMarker.alpha = 0.5f;
+                            radiusMarker.radius = 0.55f;
+                            radiusMarker.alpha = 0.6f;
                             break;
                         case "extreme":
                             // Red circle
                             radiusMarker.color1 = new Color(1f, 0f, 0f, 1f);
-                            radiusMarker.color2 = new Color(1f, 0f, 0f, 1f);
-                            radiusMarker.radius = 0.2f;
+                            radiusMarker.radius = 0.3f;
                             radiusMarker.alpha = 0.6f;
                             break;
-                        case "optimal":
+                        case "medium":
                         default:
                             // Yellow circle
                             radiusMarker.color1 = new Color(1f, 1f, 0f, 1f);
-                            radiusMarker.color2 = new Color(1f, 1f, 0f, 1f);
-                            radiusMarker.radius = 0.175f;
-                            radiusMarker.alpha = 0.55f;
+                            radiusMarker.radius = 0.4f;
+                            radiusMarker.alpha = 0.6f;
                             break;
                     }
                     
-                    // Send updates AFTER setting properties (like Sputnik does)
+                    // Send updates AFTER setting properties
                     radiusMarker.SendUpdate();
                     radiusMarker.SendNetworkUpdate();
                     
@@ -430,14 +1231,14 @@ namespace Oxide.Plugins
                     switch (intensity.ToLower())
                     {
                         case "mild":
-                            markerText = $"Meteor Shower (Mild) - {gridRef}";
+                            markerText = $"Celestial Barrage (Mild) - {gridRef}";
                             break;
                         case "extreme":
-                            markerText = $"Meteor Storm (Extreme) - {gridRef}";
+                            markerText = $"Celestial Storm (Extreme) - {gridRef}";
                             break;
-                        case "optimal":
+                        case "medium":
                         default:
-                            markerText = $"Meteor Shower (Optimal) - {gridRef}";
+                            markerText = $"Celestial Barrage (Medium) - {gridRef}";
                             break;
                     }
                     
@@ -464,29 +1265,11 @@ namespace Oxide.Plugins
                     }
                 });
 
-                // Also broadcast location info to all players
-                foreach (var player in BasePlayer.activePlayerList)
-                {
-                    switch (intensity.ToLower())
-                    {
-                        case "mild":
-                            player.ChatMessage($"<color=#00FF00>● METEOR SHOWER (Mild)</color> incoming at grid <color=#FFFFFF>{gridRef}</color>");
-                            break;
-                        case "extreme":
-                            player.ChatMessage($"<color=#FF0000>● METEOR STORM (Extreme)</color> incoming at grid <color=#FFFFFF>{gridRef}</color>");
-                            break;
-                        case "optimal":
-                        default:
-                            player.ChatMessage($"<color=#FFFF00>● METEOR SHOWER (Optimal)</color> incoming at grid <color=#FFFFFF>{gridRef}</color>");
-                            break;
-                    }
-                }
-
-                Puts($"Created map markers at {position} ({gridRef}) for {intensity} intensity meteor shower");
             }
             catch (System.Exception ex)
             {
-                Puts($"Error creating map marker: {ex.Message}");
+                // Only log actual errors, not successful marker creation
+                PrintError($"Error creating map marker: {ex.Message}");
             }
         }
 
@@ -514,36 +1297,267 @@ namespace Oxide.Plugins
                 }
             }
             activeVendingMarkers.Clear();
+        }
+
+        private void LogMessage(string message, string logType)
+        {
+            // Always log to console if enabled
+            if (configData.Logging.LogToConsole)
+            {
+                Puts(message);
+            }
+
+            // Send to Discord webhooks based on type and settings
+            if (logType == "admin" && configData.Logging.LogToPrivateDiscord && IsValidWebhookUrl(configData.Logging.PrivateAdminWebhookURL))
+            {
+                QueueDiscordMessage(configData.Logging.PrivateAdminWebhookURL, message, true, "admin");
+            }
+        }
+
+        private bool IsValidWebhookUrl(string url)
+        {
+            return !string.IsNullOrEmpty(url) && 
+                   url.StartsWith("https://discord.com/api/webhooks/") && 
+                   url.Length > 50;
+        }
+
+        private void SendPublicDiscordEmbed(string message, string intensity, string gridRef, bool isStart)
+        {
+            // Determine embed color based on intensity and event type
+            int color;
+            string title;
             
-            Puts("Cleaned up all map markers");
+            if (isStart)
+            {
+                title = "☄️ Celestial Barrage Started";
+                switch (intensity.ToLower())
+                {
+                    case "mild":
+                        color = 0x2ecc71; // Green for mild
+                        break;
+                    case "extreme":
+                        color = 0xe74c3c; // Red for extreme
+                        break;
+                    case "medium":
+                    default:
+                        color = 0xf1c40f; // Yellow for medium
+                        break;
+                }
+            }
+            else
+            {
+                title = "🌠 Celestial Barrage Ended";
+                color = 0x95a5a6; // Gray for ended
+            }
+
+            var embed = new
+            {
+                title = title,
+                description = message,
+                color = color,
+                timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                fields = new[]
+                {
+                    new
+                    {
+                        name = "Intensity",
+                        value = intensity,
+                        inline = false
+                    },
+                    new
+                    {
+                        name = "Grid Reference",
+                        value = gridRef,
+                        inline = false
+                    }
+                },
+                footer = new
+                {
+                    text = "Celestial Barrage v0.0.570",
+                    icon_url = "https://i.imgur.com/meteor.png"
+                }
+            };
+
+            var payload = new
+            {
+                username = "Celestial Barrage",
+                avatar_url = "https://i.imgur.com/meteor.png",
+                embeds = new[] { embed }
+            };
+
+            string json = JsonConvert.SerializeObject(payload);
+            var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
+
+            webrequest.Enqueue(configData.Logging.PublicWebhookURL, json, (code, response) =>
+            {
+                if (code != 200 && code != 204)
+                {
+                    PrintError($"Failed to send Discord embed to Public webhook. Response code: {code}");
+                    if (configData.Logging.LogToConsole)
+                    {
+                        Puts($"Public Discord webhook error response: {response}");
+                    }
+                }
+            }, this, Core.Libraries.RequestMethod.POST, headers);
+        }
+
+        private void SendDiscordEmbed(string webhookUrl, string message, bool isAdmin)
+        {
+            // This method now just calls the direct sending method
+            // Rate limiting is handled at the queue level
+            SendDiscordEmbedDirect(webhookUrl, message, isAdmin);
+        }
+
+        private void SendDiscordEmbedWithQueueInfo(string webhookUrl, string message, bool isAdmin, float queueDelay, int remainingCount)
+        {
+            // Determine embed color and title based on message content
+            int color = 0x3498db; // Default blue
+            string title = "Celestial Barrage";
+            string description = message;
+
+            if (message.Contains("CELESTIAL BARRAGE STARTED"))
+            {
+                color = 0xe74c3c; // Red for start
+                title = "☄️ Celestial Barrage Started";
+            }
+            else if (message.Contains("CELESTIAL BARRAGE ENDED"))
+            {
+                color = 0x2ecc71; // Green for end
+                title = "🌠 Celestial Barrage Ended";
+            }
+            else if (message.Contains("METEOR IMPACT"))
+            {
+                color = 0xf39c12; // Orange for impacts
+                if (message.Contains("METEOR IMPACT: Player"))
+                    title = "👤 Player Impact";
+                else
+                    title = "🏠 Structure Impact";
+            }
+            else if (message.Contains("SKIPPED") || message.Contains("CANCELLED"))
+            {
+                color = 0x95a5a6; // Gray for skipped
+                title = "⏭️ Event Skipped";
+            }
+
+            var embedFields = new List<object>();
+            
+            // Add queue info formatted like other messages with each data point on new lines
+            embedFields.Add(new
+            {
+                name = "⏱️ Message Queue Info",
+                value = $"Queued for: {queueDelay:F0}s\nMessages Remaining: {remainingCount}",
+                inline = false
+            });
+
+            var embed = new
+            {
+                title = title,
+                description = $"```{description}```",
+                color = color,
+                timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                fields = embedFields.ToArray(),
+                footer = new
+                {
+                    text = "Celestial Barrage v0.0.570",
+                    icon_url = "https://i.imgur.com/meteor.png"
+                }
+            };
+
+            var payload = new
+            {
+                username = "Celestial Barrage",
+                avatar_url = "https://i.imgur.com/meteor.png",
+                embeds = new[] { embed }
+            };
+
+            string json = JsonConvert.SerializeObject(payload);
+            var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
+
+            webrequest.Enqueue(webhookUrl, json, (code, response) =>
+            {
+                if (code != 200 && code != 204)
+                {
+                    string webhookType = isAdmin ? "Private Admin" : "Public";
+                    PrintError($"Failed to send Discord embed to {webhookType} webhook. Response code: {code}");
+                    if (configData.Logging.LogToConsole)
+                    {
+                        Puts($"Discord webhook error response: {response}");
+                    }
+                }
+            }, this, Core.Libraries.RequestMethod.POST, headers);
+        }
+
+        private void SendDiscordEmbedDirect(string webhookUrl, string message, bool isAdmin)
+        {
+            // Determine embed color and title based on message content
+            int color = 0x3498db; // Default blue
+            string title = "Celestial Barrage";
+            string description = message;
+
+            if (message.Contains("CELESTIAL BARRAGE STARTED"))
+            {
+                color = 0xe74c3c; // Red for start
+                title = "☄️ Celestial Barrage Started";
+            }
+            else if (message.Contains("CELESTIAL BARRAGE ENDED"))
+            {
+                color = 0x2ecc71; // Green for end
+                title = "🌠 Celestial Barrage Ended";
+            }
+            if (message.Contains("METEOR IMPACT"))
+            {
+                color = 0xf39c12; // Orange for impacts
+                if (message.Contains("METEOR IMPACT: Player"))
+                    title = "👤 Player Impact";
+                else
+                    title = "🏠 Structure Impact";
+            }
+            else if (message.Contains("SKIPPED") || message.Contains("CANCELLED"))
+            {
+                color = 0x95a5a6; // Gray for skipped
+                title = "⏭️ Event Skipped";
+            }
+
+            var embed = new
+            {
+                title = title,
+                description = $"```{description}```",
+                color = color,
+                timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                footer = new
+                {
+                    text = "Celestial Barrage v0.0.510",
+                    icon_url = "https://i.imgur.com/meteor.png"
+                }
+            };
+
+            var payload = new
+            {
+                username = "Celestial Barrage",
+                avatar_url = "https://i.imgur.com/meteor.png",
+                embeds = new[] { embed }
+            };
+
+            string json = JsonConvert.SerializeObject(payload);
+            var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
+
+            webrequest.Enqueue(webhookUrl, json, (code, response) =>
+            {
+                if (code != 200 && code != 204)
+                {
+                    string webhookType = isAdmin ? "Private Admin" : "Public";
+                    PrintError($"Failed to send Discord embed to {webhookType} webhook. Response code: {code}");
+                    if (configData.Logging.LogToConsole)
+                    {
+                        Puts($"Discord webhook error response: {response}");
+                    }
+                }
+            }, this, Core.Libraries.RequestMethod.POST, headers);
         }
         #endregion
 
         #region Config editing
-        private void SetIntervals(int intervals)
-        {
-            StopTimer();
-
-            configData.Options.EventTimers.EventInterval = intervals;
-            SaveConfig(configData);
-
-            StartEventTimer();
-        }
-        private void SetDamageMult(float scale)
-        {
-            configData.DamageControl.DamageMultiplier = scale;
-            SaveConfig(configData);
-        }
-        private void SetNotifyEvent(bool notify)
-        {
-            configData.Options.NotifyEvent = notify;
-            SaveConfig(configData);
-        }
-        private void SetDropRate(float rate)
-        {
-            configData.Options.GlobalDropMultiplier = rate;
-            SaveConfig(configData);
-        }
+        // Config editing methods removed - use config file directly
         #endregion
 
         #region Commands
@@ -569,14 +1583,14 @@ namespace Oxide.Plugins
                 case "onplayer":
                     if (args.Length == 2)
                     {
-                        if (StartOnPlayer(args[1], configData.z_IntensitySettings.Settings_Optimal, "Admin on Player"))
+                        if (StartRandomOnPlayer(args[1], "Admin on Player"))
                             SendReply(player, string.Format(msg("calledOn", player.UserIDString), args[1]));
                         else
                             SendReply(player, msg("noPlayer", player.UserIDString));
                     }
                     else
                     {
-                        StartRainOfFire(player.transform.position, configData.z_IntensitySettings.Settings_Optimal, "Admin on Position");
+                        StartRandomOnPosition(player.transform.position, "Admin on Position");
                         SendReply(player, msg("onPos", player.UserIDString));
                     }
                     break;
@@ -593,6 +1607,21 @@ namespace Oxide.Plugins
                     {
                         StartRainOfFire(player.transform.position, configData.z_IntensitySettings.Settings_Extreme, "Admin on Position");
                         SendReply(player, msg("Extreme", player.UserIDString) + msg("onPos", player.UserIDString));
+                    }
+                    break;
+
+                case "onplayer_medium":
+                    if (args.Length == 2)
+                    {
+                        if (StartOnPlayer(args[1], configData.z_IntensitySettings.Settings_Medium, "Admin on Player"))
+                            SendReply(player, msg("Medium", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
+                        else
+                            SendReply(player, msg("noPlayer", player.UserIDString));
+                    }
+                    else
+                    {
+                        StartRainOfFire(player.transform.position, configData.z_IntensitySettings.Settings_Medium, "Admin on Position");
+                        SendReply(player, msg("Medium", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
                     break;
 
@@ -616,84 +1645,14 @@ namespace Oxide.Plugins
                     break;
 
                 case "random":
+                    // Check performance before starting manual random command
+                    if (!CheckPerformanceAndPlayerCount("Manual Random Command"))
+                    {
+                        SendReply(player, "Random event cancelled due to performance or player count restrictions");
+                        return;
+                    }
                     StartRandomOnMap();
                     SendReply(player, msg("randomCall", player.UserIDString));
-                    break;
-
-                case "intervals":
-                    if (args.Length > 1)
-                    {
-                        int newIntervals;
-                        bool isValid;
-                        isValid = int.TryParse(args[1], out newIntervals);
-
-                        if (isValid)
-                        {
-                            if (newIntervals >= 4 || newIntervals == 0)
-                            {
-                                SetIntervals(newIntervals);
-                                SendReply(player, string.Format(msg("interSet", player.UserIDString), newIntervals));
-                                StopTimer();
-                                StartEventTimer();
-                            }
-                            else
-                            {
-                                SendReply(player, msg("smallInter", player.UserIDString));
-                            }
-                        }
-                        else
-                        {
-                            SendReply(player, string.Format(msg("invalidParam", player.UserIDString), args[1]));
-                        }
-                    }
-                    break;
-                case "droprate":
-                    if (args.Length > 1)
-                    {
-                        float newDropMultiplier;
-                        bool isValid;
-                        isValid = float.TryParse(args[1], out newDropMultiplier);
-                        if (isValid)
-                        {
-                            SetDropRate(newDropMultiplier);
-                            SendReply(player, msg("dropMulti", player.UserIDString) + newDropMultiplier);
-                        }
-                        else
-                        {
-                            SendReply(player, string.Format(msg("invalidParam", player.UserIDString), args[1]));
-                        }
-                    }
-                    break;
-                case "damagescale":
-                    if (args.Length > 1)
-                    {
-                        float newDamageMultiplier;
-                        bool isValid;
-                        isValid = float.TryParse(args[1], out newDamageMultiplier);
-
-                        if (isValid)
-                        {
-                            SetDamageMult(newDamageMultiplier);
-                            SendReply(player, msg("damageMulti", player.UserIDString) + newDamageMultiplier);
-                        }
-                        else
-                        {
-                            SendReply(player, string.Format(msg("invalidParam", player.UserIDString), args[1]));
-                        }
-                    }
-                    break;
-
-                case "togglemsg":
-                    if (configData.Options.NotifyEvent)
-                    {
-                        SetNotifyEvent(false);
-                        SendReply(player, msg("notifDeAct", player.UserIDString));
-                    }
-                    else
-                    {
-                        SetNotifyEvent(true);
-                        SendReply(player, msg("notifAct", player.UserIDString));
-                    }                    
                     break;
 
                 default:
@@ -713,6 +1672,13 @@ namespace Oxide.Plugins
                 if (configData == null)
                 {
                     Puts("Error: Plugin configuration not loaded. Try reloading the plugin or wait a moment after server startup.");
+                    return;
+                }
+                
+                // Check performance before starting console command
+                if (!CheckPerformanceAndPlayerCount("Console Random Command"))
+                {
+                    Puts("Random event cancelled due to performance or player count restrictions");
                     return;
                 }
                 
@@ -743,8 +1709,15 @@ namespace Oxide.Plugins
             {
                 try
                 {
+                    // Check performance before starting console command
+                    if (!CheckPerformanceAndPlayerCount("Console Position Command"))
+                    {
+                        Puts("Position event cancelled due to performance or player count restrictions");
+                        return;
+                    }
+                    
                     var position = new Vector3(x, 0, z);
-                    StartRainOfFire(GetGroundPosition(position), configData.z_IntensitySettings.Settings_Optimal, "Console Command");
+                    StartRandomOnPosition(GetGroundPosition(position), "Console Command");
                     Puts($"Random event started on position {x}, {position.y}, {z}");
                 }
                 catch (System.Exception ex)
@@ -760,27 +1733,23 @@ namespace Oxide.Plugins
         #region Helpers
         private BasePlayer GetPlayerByName(string name)
         {
-            string currentName;
-            string lastName;
             BasePlayer foundPlayer = null;
             name = name.ToLower();
+            int bestMatchLength = int.MaxValue;
 
             foreach (BasePlayer player in BasePlayer.activePlayerList)
             {
-                currentName = player.displayName.ToLower();
-
+                string currentName = player.displayName.ToLower();
+                
                 if (currentName.Contains(name))
                 {
-                    if (foundPlayer != null)
+                    int remainingLength = currentName.Replace(name, "").Length;
+                    
+                    if (remainingLength < bestMatchLength)
                     {
-                        lastName = foundPlayer.displayName;
-                        if (currentName.Replace(name, "").Length < lastName.Replace(name, "").Length)
-                        {
-                            foundPlayer = player;
-                        }
+                        bestMatchLength = remainingLength;
+                        foundPlayer = player;
                     }
-
-                    foundPlayer = player;
                 }
             }
 
@@ -803,22 +1772,7 @@ namespace Oxide.Plugins
 
         private string GetGridReference(Vector3 position)
         {
-            // Rust map grid system: center is 0,0
-            // Grid letters go A-Z from west to east, numbers 0-25+ from south to north
-            float mapSize = TerrainMeta.Size.x;
-            float halfMap = mapSize / 2f;
-            
-            // Convert world coordinates to grid coordinates
-            float gridX = (position.x + halfMap) / (mapSize / 26f);
-            float gridZ = (position.z + halfMap) / (mapSize / 26f);
-            
-            // Get grid letter (A-Z)
-            char gridLetter = (char)('A' + Mathf.Clamp((int)gridX, 0, 25));
-            
-            // Get grid number (0-25+)
-            int gridNumber = Mathf.Clamp((int)gridZ, 0, 25);
-            
-            return $"{gridLetter}{gridNumber}";
+            return MapHelper.GridToString(MapHelper.PositionToGrid(position));
         }        
         #endregion
 
@@ -854,6 +1808,15 @@ namespace Oxide.Plugins
             public int Minimum { get; set; }
             public int Maximum { get; set; }
         }
+
+        private class QueuedDiscordMessage
+        {
+            public string WebhookUrl { get; set; }
+            public string Message { get; set; }
+            public bool IsAdmin { get; set; }
+            public string MessageType { get; set; }
+            public float QueuedTime { get; set; }
+        }
         #endregion
 
         #region Config        
@@ -864,6 +1827,7 @@ namespace Oxide.Plugins
             public BarrageOptions BarrageSettings { get; set; }
             public DamageOptions DamageControl { get; set; }
             public ConfigOptions Options { get; set; }
+            public LoggingOptions Logging { get; set; }
             public IntensityOptions z_IntensitySettings { get; set; }
 
             public class DamageOptions
@@ -895,6 +1859,33 @@ namespace Oxide.Plugins
                 public WarningSettings WarningCountdown { get; set; }
                 public EffectsSettings VisualEffects { get; set; }
                 public MapMarkerSettings MapMarkers { get; set; }
+            }
+
+            public class LoggingOptions
+            {
+                public string PublicWebhookURL { get; set; }
+                public string PrivateAdminWebhookURL { get; set; }
+                public bool LogToConsole { get; set; }
+                public bool LogToPublicDiscord { get; set; }
+                public bool LogToPrivateDiscord { get; set; }
+                public bool ShowInGameMessages { get; set; }
+                public float MinimumDamageThreshold { get; set; }
+                public DiscordImpactOptions DiscordImpactSettings { get; set; }
+                public DiscordRateLimitOptions DiscordRateLimit { get; set; }
+            }
+
+            public class DiscordImpactOptions
+            {
+                public bool LogMeteorEvents { get; set; }
+                public bool LogPlayerImpacts { get; set; }
+                public bool LogStructureImpacts { get; set; }
+            }
+
+            public class DiscordRateLimitOptions
+            {
+                public bool EnableRateLimit { get; set; }
+                public float ImpactMessageCooldown { get; set; }
+                public int MaxImpactsPerMinute { get; set; }
             }
 
             public class PerformanceSettings
@@ -940,16 +1931,114 @@ namespace Oxide.Plugins
             public class IntensityOptions
             {
                 public Settings Settings_Mild { get; set; }
-                public Settings Settings_Optimal { get; set; }
+                public Settings Settings_Medium { get; set; }
                 public Settings Settings_Extreme { get; set; }
+            }
+        }
+
+        private bool NeedsConfigUpdate()
+        {
+            // Check if the config file contains the new DiscordImpactSettings property
+            try
+            {
+                string configPath = $"{Interface.Oxide.ConfigDirectory}/{Name}.json";
+                if (System.IO.File.Exists(configPath))
+                {
+                    string configText = System.IO.File.ReadAllText(configPath);
+                    return !configText.Contains("DiscordImpactSettings");
+                }
+                return true;
+            }
+            catch
+            {
+                return true;
             }
         }
 
         private void LoadVariables()
         {
+            // Check if we need to regenerate config for new properties
+            if (NeedsConfigRegeneration())
+            {
+                Puts("Config missing new properties - backing up old config and regenerating");
+                BackupAndRegenerateConfig();
+            }
+            
             LoadConfigVariables();
             ValidateConfig();
             SaveConfig();
+        }
+
+        private bool NeedsConfigRegeneration()
+        {
+            try
+            {
+                string configPath = $"{Interface.Oxide.ConfigDirectory}/{Name}.json";
+                if (System.IO.File.Exists(configPath))
+                {
+                    string configText = System.IO.File.ReadAllText(configPath);
+                    return !configText.Contains("DiscordImpactSettings");
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void BackupAndRegenerateConfig()
+        {
+            try
+            {
+                // Load existing config to preserve settings
+                var oldConfig = Config.ReadObject<ConfigData>();
+                
+                // Create backup
+                string configPath = $"{Interface.Oxide.ConfigDirectory}/{Name}.json";
+                string backupPath = $"{Interface.Oxide.ConfigDirectory}/{Name}_backup_{System.DateTime.Now:yyyyMMdd_HHmmss}.json";
+                System.IO.File.Copy(configPath, backupPath);
+                Puts($"Backed up old config to: {backupPath}");
+                
+                // Generate new config with preserved values
+                LoadDefaultConfig();
+                
+                // Restore old values if they existed
+                if (oldConfig != null)
+                {
+                    configData = Config.ReadObject<ConfigData>();
+                    
+                    // Preserve all old settings
+                    if (oldConfig.BarrageSettings != null)
+                        configData.BarrageSettings = oldConfig.BarrageSettings;
+                    if (oldConfig.DamageControl != null)
+                        configData.DamageControl = oldConfig.DamageControl;
+                    if (oldConfig.Options != null)
+                        configData.Options = oldConfig.Options;
+                    if (oldConfig.z_IntensitySettings != null)
+                        configData.z_IntensitySettings = oldConfig.z_IntensitySettings;
+                        
+                    // Preserve old logging settings but add new property
+                    if (oldConfig.Logging != null)
+                    {
+                        configData.Logging.LogToConsole = oldConfig.Logging.LogToConsole;
+                        configData.Logging.LogToPublicDiscord = oldConfig.Logging.LogToPublicDiscord;
+                        configData.Logging.LogToPrivateDiscord = oldConfig.Logging.LogToPrivateDiscord;
+                        if (oldConfig.Logging.ShowInGameMessages != default(bool))
+                            configData.Logging.ShowInGameMessages = oldConfig.Logging.ShowInGameMessages;
+                        if (oldConfig.Logging.MinimumDamageThreshold != default(float))
+                            configData.Logging.MinimumDamageThreshold = oldConfig.Logging.MinimumDamageThreshold;
+                        // DiscordImpactSettings gets the new default value from LoadDefaultConfig
+                    }
+                    
+                    SaveConfig(configData);
+                    Puts("Config regenerated with new DiscordImpactSettings property while preserving all existing settings");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                PrintError($"Error during config regeneration: {ex.Message}");
+            }
         }
 
         private void ValidateConfig()
@@ -965,194 +2054,572 @@ namespace Oxide.Plugins
                 return;
             }
 
+            // Create default config for reference
+            var defaultConfig = new ConfigData
+            {
+                BarrageSettings = new ConfigData.BarrageOptions
+                {
+                    NumberOfRockets = 20,
+                    RocketDelay = 0.33f,
+                    RocketSpread = 16f
+                },
+                DamageControl = new ConfigData.DamageOptions
+                {
+                    DamageMultiplier = 0.2f,
+                },                
+                Options = new ConfigData.ConfigOptions
+                {
+                    EnableAutomaticEvents = true,
+                    EventTimers = new ConfigData.Timers
+                    {
+                        EventInterval = 120,
+                        RandomTimerMax = 240,
+                        RandomTimerMin = 120,
+                        UseRandomTimer = false
+                    },  
+                    GlobalDropMultiplier = 1.0f,
+                    NotifyEvent = true,
+                    MinimumPlayerCount = 1,
+                    PerformanceMonitoring = new ConfigData.PerformanceSettings
+                    {
+                        EnableFPSCheck = true,
+                        MinimumFPS = 40f
+                    },
+                    WarningCountdown = new ConfigData.WarningSettings
+                    {
+                        EnableWarning = true,
+                        CountdownSeconds = 30f
+                    },
+                    VisualEffects = new ConfigData.EffectsSettings
+                    {
+                        EnableScreenShake = true,
+                        EnableParticleTrails = true
+                    },
+                    MapMarkers = new ConfigData.MapMarkerSettings
+                    {
+                        EnableMapMarkers = true
+                    }
+                },
+                Logging = new ConfigData.LoggingOptions
+                {
+                    PublicWebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+                    PrivateAdminWebhookURL = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
+                    LogToConsole = true,
+                    LogToPublicDiscord = false,
+                    LogToPrivateDiscord = true,
+                    ShowInGameMessages = true,
+                    MinimumDamageThreshold = 0.5f,
+                    DiscordImpactSettings = new ConfigData.DiscordImpactOptions
+                    {
+                        LogMeteorEvents = true,
+                        LogPlayerImpacts = true,
+                        LogStructureImpacts = false
+                    },
+                    DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
+                    {
+                        EnableRateLimit = true,
+                        ImpactMessageCooldown = 2.0f,
+                        MaxImpactsPerMinute = 20
+                    }
+                },
+                z_IntensitySettings = new ConfigData.IntensityOptions
+                {
+                    Settings_Mild = new ConfigData.Settings
+                    {
+                        FireRocketChance = 30,
+                        Radius = 500f,
+                        Duration = 240,
+                        RocketAmount = 20,
+                        ItemDropControl = new ConfigData.Drops
+                        {
+                            EnableItemDrop = true,
+                            ItemsToDrop = new ItemDrop[]
+                            {
+                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "stones" },
+                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "metal.ore" },
+                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "sulfur.ore" },
+                                new ItemDrop { Maximum = 20, Minimum = 10, Shortname = "scrap" }
+                            }
+                        }
+                    },
+                    Settings_Medium = new ConfigData.Settings
+                    {
+                        FireRocketChance = 20,
+                        Radius = 300f,
+                        Duration = 120,
+                        RocketAmount = 45,
+                        ItemDropControl = new ConfigData.Drops
+                        {
+                            EnableItemDrop = true,
+                            ItemsToDrop = new ItemDrop[]
+                            {
+                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "stones" },
+                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "metal.fragments" },
+                                new ItemDrop { Maximum = 30, Minimum = 15, Shortname = "hq.metal.ore" },
+                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "sulfur.ore" },
+                                new ItemDrop { Maximum = 50, Minimum = 20, Shortname = "scrap" }
+                            }
+                        }
+                    },
+                    Settings_Extreme = new ConfigData.Settings
+                    {
+                        FireRocketChance = 10,
+                        Radius = 100f,
+                        Duration = 30,
+                        RocketAmount = 70,
+                        ItemDropControl = new ConfigData.Drops
+                        {
+                            EnableItemDrop = true,
+                            ItemsToDrop = new ItemDrop[]
+                            {
+                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "stones" },
+                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "metal.fragments" },
+                                new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "hq.metal.ore" },
+                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "sulfur.ore" },
+                                new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "scrap" }
+                            }
+                        }
+                    }
+                }
+            };
+
             // Validate BarrageSettings
             if (configData.BarrageSettings == null)
             {
-                Puts("BarrageSettings is null - creating defaults");
-                configData.BarrageSettings = new ConfigData.BarrageOptions();
+                Puts("Adding missing BarrageSettings section");
+                configData.BarrageSettings = defaultConfig.BarrageSettings;
                 configChanged = true;
             }
-            
-            if (configData.BarrageSettings.NumberOfRockets <= 0)
+            else
             {
-                Puts($"Invalid NumberOfRockets ({configData.BarrageSettings.NumberOfRockets}) - setting to 20");
-                configData.BarrageSettings.NumberOfRockets = 20;
-                configChanged = true;
-            }
-            
-            if (configData.BarrageSettings.RocketDelay <= 0)
-            {
-                Puts($"Invalid RocketDelay ({configData.BarrageSettings.RocketDelay}) - setting to 0.33");
-                configData.BarrageSettings.RocketDelay = 0.33f;
-                configChanged = true;
-            }
-            
-            if (configData.BarrageSettings.RocketSpread <= 0)
-            {
-                Puts($"Invalid RocketSpread ({configData.BarrageSettings.RocketSpread}) - setting to 16");
-                configData.BarrageSettings.RocketSpread = 16f;
-                configChanged = true;
+                if (configData.BarrageSettings.NumberOfRockets == 0)
+                {
+                    Puts("Adding missing BarrageSettings.NumberOfRockets");
+                    configData.BarrageSettings.NumberOfRockets = defaultConfig.BarrageSettings.NumberOfRockets;
+                    configChanged = true;
+                }
+                if (configData.BarrageSettings.RocketDelay == 0)
+                {
+                    Puts("Adding missing BarrageSettings.RocketDelay");
+                    configData.BarrageSettings.RocketDelay = defaultConfig.BarrageSettings.RocketDelay;
+                    configChanged = true;
+                }
+                if (configData.BarrageSettings.RocketSpread == 0)
+                {
+                    Puts("Adding missing BarrageSettings.RocketSpread");
+                    configData.BarrageSettings.RocketSpread = defaultConfig.BarrageSettings.RocketSpread;
+                    configChanged = true;
+                }
             }
 
             // Validate DamageControl
             if (configData.DamageControl == null)
             {
-                Puts("DamageControl is null - creating defaults");
-                configData.DamageControl = new ConfigData.DamageOptions();
+                Puts("Adding missing DamageControl section");
+                configData.DamageControl = defaultConfig.DamageControl;
                 configChanged = true;
             }
-            
-            if (configData.DamageControl.DamageMultiplier < 0)
+            else
             {
-                Puts($"Invalid DamageMultiplier ({configData.DamageControl.DamageMultiplier}) - setting to 0.2");
-                configData.DamageControl.DamageMultiplier = 0.2f;
-                configChanged = true;
+                if (configData.DamageControl.DamageMultiplier == 0)
+                {
+                    Puts("Adding missing DamageControl.DamageMultiplier");
+                    configData.DamageControl.DamageMultiplier = defaultConfig.DamageControl.DamageMultiplier;
+                    configChanged = true;
+                }
             }
 
             // Validate Options
             if (configData.Options == null)
             {
-                Puts("Options is null - creating defaults");
-                configData.Options = new ConfigData.ConfigOptions();
+                Puts("Adding missing Options section");
+                configData.Options = defaultConfig.Options;
                 configChanged = true;
+            }
+            else
+            {
+                if (configData.Options.GlobalDropMultiplier == 0)
+                {
+                    Puts("Adding missing Options.GlobalDropMultiplier");
+                    configData.Options.GlobalDropMultiplier = defaultConfig.Options.GlobalDropMultiplier;
+                    configChanged = true;
+                }
+                if (configData.Options.MinimumPlayerCount == 0)
+                {
+                    Puts("Adding missing Options.MinimumPlayerCount");
+                    configData.Options.MinimumPlayerCount = defaultConfig.Options.MinimumPlayerCount;
+                    configChanged = true;
+                }
+
+                if (configData.Options.EventTimers == null)
+                {
+                    Puts("Adding missing Options.EventTimers section");
+                    configData.Options.EventTimers = defaultConfig.Options.EventTimers;
+                    configChanged = true;
+                }
+                else
+                {
+                    if (configData.Options.EventTimers.EventInterval == 0)
+                    {
+                        Puts("Adding missing EventTimers.EventInterval");
+                        configData.Options.EventTimers.EventInterval = defaultConfig.Options.EventTimers.EventInterval;
+                        configChanged = true;
+                    }
+                    if (configData.Options.EventTimers.RandomTimerMin == 0)
+                    {
+                        Puts("Adding missing EventTimers.RandomTimerMin");
+                        configData.Options.EventTimers.RandomTimerMin = defaultConfig.Options.EventTimers.RandomTimerMin;
+                        configChanged = true;
+                    }
+                    if (configData.Options.EventTimers.RandomTimerMax == 0)
+                    {
+                        Puts("Adding missing EventTimers.RandomTimerMax");
+                        configData.Options.EventTimers.RandomTimerMax = defaultConfig.Options.EventTimers.RandomTimerMax;
+                        configChanged = true;
+                    }
+                }
+
+                if (configData.Options.PerformanceMonitoring == null)
+                {
+                    Puts("Adding missing Options.PerformanceMonitoring section");
+                    configData.Options.PerformanceMonitoring = defaultConfig.Options.PerformanceMonitoring;
+                    configChanged = true;
+                }
+                else
+                {
+                    if (configData.Options.PerformanceMonitoring.MinimumFPS == 0)
+                    {
+                        Puts("Adding missing PerformanceMonitoring.MinimumFPS");
+                        configData.Options.PerformanceMonitoring.MinimumFPS = defaultConfig.Options.PerformanceMonitoring.MinimumFPS;
+                        configChanged = true;
+                    }
+                }
+
+                if (configData.Options.WarningCountdown == null)
+                {
+                    Puts("Adding missing Options.WarningCountdown section");
+                    configData.Options.WarningCountdown = defaultConfig.Options.WarningCountdown;
+                    configChanged = true;
+                }
+                else
+                {
+                    if (configData.Options.WarningCountdown.CountdownSeconds == 0)
+                    {
+                        Puts("Adding missing WarningCountdown.CountdownSeconds");
+                        configData.Options.WarningCountdown.CountdownSeconds = defaultConfig.Options.WarningCountdown.CountdownSeconds;
+                        configChanged = true;
+                    }
+                }
+
+                if (configData.Options.VisualEffects == null)
+                {
+                    Puts("Adding missing Options.VisualEffects section");
+                    configData.Options.VisualEffects = defaultConfig.Options.VisualEffects;
+                    configChanged = true;
+                }
+
+                if (configData.Options.MapMarkers == null)
+                {
+                    Puts("Adding missing Options.MapMarkers section");
+                    configData.Options.MapMarkers = defaultConfig.Options.MapMarkers;
+                    configChanged = true;
+                }
             }
 
-            // Validate EventTimers
-            if (configData.Options.EventTimers == null)
+            // Validate Logging
+            if (configData.Logging == null)
             {
-                Puts("EventTimers is null - creating defaults");
-                configData.Options.EventTimers = new ConfigData.Timers();
+                Puts("Adding missing Logging section");
+                configData.Logging = defaultConfig.Logging;
                 configChanged = true;
             }
-            
-            if (configData.Options.EventTimers.EventInterval <= 0)
+            else
             {
-                Puts($"Invalid EventInterval ({configData.Options.EventTimers.EventInterval}) - setting to 30");
-                configData.Options.EventTimers.EventInterval = 30;
-                configChanged = true;
-            }
-            
-            if (configData.Options.EventTimers.RandomTimerMin <= 0)
-            {
-                Puts($"Invalid RandomTimerMin ({configData.Options.EventTimers.RandomTimerMin}) - setting to 15");
-                configData.Options.EventTimers.RandomTimerMin = 15;
-                configChanged = true;
-            }
-            
-            if (configData.Options.EventTimers.RandomTimerMax <= configData.Options.EventTimers.RandomTimerMin)
-            {
-                Puts($"Invalid RandomTimerMax ({configData.Options.EventTimers.RandomTimerMax}) - setting to 45");
-                configData.Options.EventTimers.RandomTimerMax = 45;
-                configChanged = true;
+                if (string.IsNullOrEmpty(configData.Logging.PublicWebhookURL))
+                {
+                    Puts("Adding missing Logging.PublicWebhookURL");
+                    configData.Logging.PublicWebhookURL = defaultConfig.Logging.PublicWebhookURL;
+                    configChanged = true;
+                }
+                if (string.IsNullOrEmpty(configData.Logging.PrivateAdminWebhookURL))
+                {
+                    Puts("Adding missing Logging.PrivateAdminWebhookURL");
+                    configData.Logging.PrivateAdminWebhookURL = defaultConfig.Logging.PrivateAdminWebhookURL;
+                    configChanged = true;
+                }
+
+                if (configData.Logging.DiscordRateLimit == null)
+                {
+                    Puts("Adding missing Logging.DiscordRateLimit section");
+                    configData.Logging.DiscordRateLimit = defaultConfig.Logging.DiscordRateLimit;
+                    configChanged = true;
+                }
+                else
+                {
+                    if (configData.Logging.DiscordRateLimit.ImpactMessageCooldown == 0)
+                    {
+                        Puts("Adding missing DiscordRateLimit.ImpactMessageCooldown");
+                        configData.Logging.DiscordRateLimit.ImpactMessageCooldown = defaultConfig.Logging.DiscordRateLimit.ImpactMessageCooldown;
+                        configChanged = true;
+                    }
+                    if (configData.Logging.DiscordRateLimit.MaxImpactsPerMinute == 0)
+                    {
+                        Puts("Adding missing DiscordRateLimit.MaxImpactsPerMinute");
+                        configData.Logging.DiscordRateLimit.MaxImpactsPerMinute = defaultConfig.Logging.DiscordRateLimit.MaxImpactsPerMinute;
+                        configChanged = true;
+                    }
+                }
+
+                if (configData.Logging.MinimumDamageThreshold == 0)
+                {
+                    Puts("Adding missing Logging.MinimumDamageThreshold");
+                    configData.Logging.MinimumDamageThreshold = defaultConfig.Logging.MinimumDamageThreshold;
+                    configChanged = true;
+                }
+                
+                // Validate MinimumDamageThreshold range and handle invalid values
+                if (configData.Logging.MinimumDamageThreshold < 0f || 
+                    configData.Logging.MinimumDamageThreshold > 1000f || 
+                    float.IsNaN(configData.Logging.MinimumDamageThreshold) || 
+                    float.IsInfinity(configData.Logging.MinimumDamageThreshold))
+                {
+                    float oldValue = configData.Logging.MinimumDamageThreshold;
+                    configData.Logging.MinimumDamageThreshold = defaultConfig.Logging.MinimumDamageThreshold;
+                    Puts($"Invalid MinimumDamageThreshold value ({oldValue}), resetting to default ({configData.Logging.MinimumDamageThreshold})");
+                    configChanged = true;
+                }
             }
 
-            if (configData.Options.GlobalDropMultiplier < 0)
-            {
-                Puts($"Invalid GlobalDropMultiplier ({configData.Options.GlobalDropMultiplier}) - setting to 1.0");
-                configData.Options.GlobalDropMultiplier = 1.0f;
-                configChanged = true;
-            }
-
-            if (configData.Options.MinimumPlayerCount < 0)
-            {
-                Puts($"Invalid MinimumPlayerCount ({configData.Options.MinimumPlayerCount}) - setting to 2");
-                configData.Options.MinimumPlayerCount = 2;
-                configChanged = true;
-            }
-
-            // Validate PerformanceMonitoring
-            if (configData.Options.PerformanceMonitoring == null)
-            {
-                Puts("PerformanceMonitoring is null - creating defaults");
-                configData.Options.PerformanceMonitoring = new ConfigData.PerformanceSettings();
-                configChanged = true;
-            }
-            
-            if (configData.Options.PerformanceMonitoring.MinimumFPS <= 0)
-            {
-                Puts($"Invalid MinimumFPS ({configData.Options.PerformanceMonitoring.MinimumFPS}) - setting to 40");
-                configData.Options.PerformanceMonitoring.MinimumFPS = 40f;
-                configChanged = true;
-            }
-
-            // Validate WarningCountdown
-            if (configData.Options.WarningCountdown == null)
-            {
-                Puts("WarningCountdown is null - creating defaults");
-                configData.Options.WarningCountdown = new ConfigData.WarningSettings();
-                configChanged = true;
-            }
-            
-            if (configData.Options.WarningCountdown.CountdownSeconds < 0)
-            {
-                Puts($"Invalid CountdownSeconds ({configData.Options.WarningCountdown.CountdownSeconds}) - setting to 30");
-                configData.Options.WarningCountdown.CountdownSeconds = 30f;
-                configChanged = true;
-            }
-
-            // Validate VisualEffects
-            if (configData.Options.VisualEffects == null)
-            {
-                Puts("VisualEffects is null - creating defaults");
-                configData.Options.VisualEffects = new ConfigData.EffectsSettings();
-                configChanged = true;
-            }
-
-            // Validate MapMarkers
-            if (configData.Options.MapMarkers == null)
-            {
-                Puts("MapMarkers is null - creating defaults");
-                configData.Options.MapMarkers = new ConfigData.MapMarkerSettings();
-                configChanged = true;
-            }
-
-            // Validate IntensitySettings
+            // Validate z_IntensitySettings
             if (configData.z_IntensitySettings == null)
             {
-                Puts("IntensitySettings is null - creating defaults");
-                configData.z_IntensitySettings = new ConfigData.IntensityOptions();
-                configChanged = true;
-            }
-
-            // Validate Mild Settings
-            if (configData.z_IntensitySettings.Settings_Mild == null)
-            {
-                Puts("Settings_Mild is null - creating defaults");
-                configData.z_IntensitySettings.Settings_Mild = CreateDefaultMildSettings();
+                Puts("Adding missing z_IntensitySettings section");
+                configData.z_IntensitySettings = defaultConfig.z_IntensitySettings;
                 configChanged = true;
             }
             else
             {
-                configChanged |= ValidateSettings(configData.z_IntensitySettings.Settings_Mild, "Mild");
+                if (configData.z_IntensitySettings.Settings_Mild == null)
+                {
+                    Puts("Adding missing z_IntensitySettings.Settings_Mild section");
+                    configData.z_IntensitySettings.Settings_Mild = defaultConfig.z_IntensitySettings.Settings_Mild;
+                    configChanged = true;
+                }
+                else
+                {
+                    if (configData.z_IntensitySettings.Settings_Mild.FireRocketChance == 0)
+                    {
+                        Puts("Adding missing Settings_Mild.FireRocketChance");
+                        configData.z_IntensitySettings.Settings_Mild.FireRocketChance = defaultConfig.z_IntensitySettings.Settings_Mild.FireRocketChance;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Mild.Radius == 0)
+                    {
+                        Puts("Adding missing Settings_Mild.Radius");
+                        configData.z_IntensitySettings.Settings_Mild.Radius = defaultConfig.z_IntensitySettings.Settings_Mild.Radius;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Mild.RocketAmount == 0)
+                    {
+                        Puts("Adding missing Settings_Mild.RocketAmount");
+                        configData.z_IntensitySettings.Settings_Mild.RocketAmount = defaultConfig.z_IntensitySettings.Settings_Mild.RocketAmount;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Mild.Duration == 0)
+                    {
+                        Puts("Adding missing Settings_Mild.Duration");
+                        configData.z_IntensitySettings.Settings_Mild.Duration = defaultConfig.z_IntensitySettings.Settings_Mild.Duration;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Mild.ItemDropControl == null)
+                    {
+                        Puts("Adding missing Settings_Mild.ItemDropControl section");
+                        configData.z_IntensitySettings.Settings_Mild.ItemDropControl = defaultConfig.z_IntensitySettings.Settings_Mild.ItemDropControl;
+                        configChanged = true;
+                    }
+                }
+
+                if (configData.z_IntensitySettings.Settings_Medium == null)
+                {
+                    Puts("Adding missing z_IntensitySettings.Settings_Medium section");
+                    configData.z_IntensitySettings.Settings_Medium = defaultConfig.z_IntensitySettings.Settings_Medium;
+                    configChanged = true;
+                }
+                else
+                {
+                    if (configData.z_IntensitySettings.Settings_Medium.FireRocketChance == 0)
+                    {
+                        Puts("Adding missing Settings_Medium.FireRocketChance");
+                        configData.z_IntensitySettings.Settings_Medium.FireRocketChance = defaultConfig.z_IntensitySettings.Settings_Medium.FireRocketChance;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Medium.Radius == 0)
+                    {
+                        Puts("Adding missing Settings_Medium.Radius");
+                        configData.z_IntensitySettings.Settings_Medium.Radius = defaultConfig.z_IntensitySettings.Settings_Medium.Radius;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Medium.RocketAmount == 0)
+                    {
+                        Puts("Adding missing Settings_Medium.RocketAmount");
+                        configData.z_IntensitySettings.Settings_Medium.RocketAmount = defaultConfig.z_IntensitySettings.Settings_Medium.RocketAmount;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Medium.Duration == 0)
+                    {
+                        Puts("Adding missing Settings_Medium.Duration");
+                        configData.z_IntensitySettings.Settings_Medium.Duration = defaultConfig.z_IntensitySettings.Settings_Medium.Duration;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Medium.ItemDropControl == null)
+                    {
+                        Puts("Adding missing Settings_Medium.ItemDropControl section");
+                        configData.z_IntensitySettings.Settings_Medium.ItemDropControl = defaultConfig.z_IntensitySettings.Settings_Medium.ItemDropControl;
+                        configChanged = true;
+                    }
+                }
+
+                if (configData.z_IntensitySettings.Settings_Extreme == null)
+                {
+                    Puts("Adding missing z_IntensitySettings.Settings_Extreme section");
+                    configData.z_IntensitySettings.Settings_Extreme = defaultConfig.z_IntensitySettings.Settings_Extreme;
+                    configChanged = true;
+                }
+                else
+                {
+                    if (configData.z_IntensitySettings.Settings_Extreme.FireRocketChance == 0)
+                    {
+                        Puts("Adding missing Settings_Extreme.FireRocketChance");
+                        configData.z_IntensitySettings.Settings_Extreme.FireRocketChance = defaultConfig.z_IntensitySettings.Settings_Extreme.FireRocketChance;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Extreme.Radius == 0)
+                    {
+                        Puts("Adding missing Settings_Extreme.Radius");
+                        configData.z_IntensitySettings.Settings_Extreme.Radius = defaultConfig.z_IntensitySettings.Settings_Extreme.Radius;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Extreme.RocketAmount == 0)
+                    {
+                        Puts("Adding missing Settings_Extreme.RocketAmount");
+                        configData.z_IntensitySettings.Settings_Extreme.RocketAmount = defaultConfig.z_IntensitySettings.Settings_Extreme.RocketAmount;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Extreme.Duration == 0)
+                    {
+                        Puts("Adding missing Settings_Extreme.Duration");
+                        configData.z_IntensitySettings.Settings_Extreme.Duration = defaultConfig.z_IntensitySettings.Settings_Extreme.Duration;
+                        configChanged = true;
+                    }
+                    if (configData.z_IntensitySettings.Settings_Extreme.ItemDropControl == null)
+                    {
+                        Puts("Adding missing Settings_Extreme.ItemDropControl section");
+                        configData.z_IntensitySettings.Settings_Extreme.ItemDropControl = defaultConfig.z_IntensitySettings.Settings_Extreme.ItemDropControl;
+                        configChanged = true;
+                    }
+                }
             }
 
-            // Validate Optimal Settings
-            if (configData.z_IntensitySettings.Settings_Optimal == null)
+            // Force config regeneration to add new DiscordImpactSettings property
+            if (NeedsConfigUpdate())
             {
-                Puts("Settings_Optimal is null - creating defaults");
-                configData.z_IntensitySettings.Settings_Optimal = CreateDefaultOptimalSettings();
+                Puts("Config needs update for new DiscordImpactSettings property - regenerating config");
+                var oldLogging = configData.Logging;
+                configData.Logging = new ConfigData.LoggingOptions
+                {
+                    PublicWebhookURL = oldLogging?.PublicWebhookURL ?? "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+                    PrivateAdminWebhookURL = oldLogging?.PrivateAdminWebhookURL ?? "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
+                    LogToConsole = oldLogging?.LogToConsole ?? true,
+                    LogToPublicDiscord = oldLogging?.LogToPublicDiscord ?? false,
+                    LogToPrivateDiscord = oldLogging?.LogToPrivateDiscord ?? true,
+                    ShowInGameMessages = oldLogging?.ShowInGameMessages ?? true,
+                    MinimumDamageThreshold = oldLogging?.MinimumDamageThreshold ?? 0.5f,
+                    DiscordImpactSettings = new ConfigData.DiscordImpactOptions
+                    {
+                        LogMeteorEvents = true,
+                        LogPlayerImpacts = true,
+                        LogStructureImpacts = false
+                    },
+                    DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
+                    {
+                        EnableRateLimit = true,
+                        ImpactMessageCooldown = 2.0f,
+                        MaxImpactsPerMinute = 20
+                    }
+                };
                 configChanged = true;
-            }
-            else
-            {
-                configChanged |= ValidateSettings(configData.z_IntensitySettings.Settings_Optimal, "Optimal");
             }
 
-            // Validate Extreme Settings
-            if (configData.z_IntensitySettings.Settings_Extreme == null)
+            // Rest of validation code remains the same...
+            if (configData.z_IntensitySettings?.Settings_Mild?.ItemDropControl?.ItemsToDrop != null)
             {
-                Puts("Settings_Extreme is null - creating defaults");
-                configData.z_IntensitySettings.Settings_Extreme = CreateDefaultExtremeSettings();
-                configChanged = true;
+                // Only update if the drops don't match our new structure
+                var currentMild = configData.z_IntensitySettings.Settings_Mild.ItemDropControl.ItemsToDrop;
+                bool needsUpdate = currentMild.Length != 4 || 
+                                 !System.Array.Exists(currentMild, x => x.Shortname == "scrap") ||
+                                 !System.Array.Exists(currentMild, x => x.Shortname == "sulfur.ore");
+                
+                if (needsUpdate)
+                {
+                    Puts("Updating Mild intensity drops to new values");
+                    configData.z_IntensitySettings.Settings_Mild.ItemDropControl.ItemsToDrop = new ItemDrop[]
+                    {
+                        new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "stones" },
+                        new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "metal.ore" },
+                        new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "sulfur.ore" },
+                        new ItemDrop { Maximum = 20, Minimum = 10, Shortname = "scrap" }
+                    };
+                    configChanged = true;
+                }
             }
-            else
+
+            if (configData.z_IntensitySettings?.Settings_Medium?.ItemDropControl?.ItemsToDrop != null)
             {
-                configChanged |= ValidateSettings(configData.z_IntensitySettings.Settings_Extreme, "Extreme");
+                var currentMedium = configData.z_IntensitySettings.Settings_Medium.ItemDropControl.ItemsToDrop;
+                bool needsUpdate = currentMedium.Length != 5 || 
+                                 !System.Array.Exists(currentMedium, x => x.Shortname == "scrap") ||
+                                 !System.Array.Exists(currentMedium, x => x.Shortname == "sulfur.ore");
+                
+                if (needsUpdate)
+                {
+                    Puts("Updating Medium intensity drops to new values");
+                    configData.z_IntensitySettings.Settings_Medium.ItemDropControl.ItemsToDrop = new ItemDrop[]
+                    {
+                        new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "stones" },
+                        new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "metal.fragments" },
+                        new ItemDrop { Maximum = 30, Minimum = 15, Shortname = "hq.metal.ore" },
+                        new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "sulfur.ore" },
+                        new ItemDrop { Maximum = 50, Minimum = 20, Shortname = "scrap" }
+                    };
+                    configChanged = true;
+                }
+            }
+
+            if (configData.z_IntensitySettings?.Settings_Extreme?.ItemDropControl?.ItemsToDrop != null)
+            {
+                var currentExtreme = configData.z_IntensitySettings.Settings_Extreme.ItemDropControl.ItemsToDrop;
+                bool needsUpdate = currentExtreme.Length != 5 || 
+                                 System.Array.Exists(currentExtreme, x => x.Shortname == "metal.refined") ||
+                                 !System.Array.Exists(currentExtreme, x => x.Shortname == "scrap");
+                
+                if (needsUpdate)
+                {
+                    Puts("Updating Extreme intensity drops to new values");
+                    configData.z_IntensitySettings.Settings_Extreme.ItemDropControl.ItemsToDrop = new ItemDrop[]
+                    {
+                        new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "stones" },
+                        new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "metal.fragments" },
+                        new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "hq.metal.ore" },
+                        new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "sulfur.ore" },
+                        new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "scrap" }
+                    };
+                    configChanged = true;
+                }
             }
 
             if (configChanged)
             {
-                Puts("Config validation completed - fixed invalid values");
+                Puts("Config validation completed - updated drop tables to v0.0.570 values");
                 SaveConfig(configData);
             }
             else
@@ -1160,180 +2627,6 @@ namespace Oxide.Plugins
                 Puts("Config validation completed - no issues found");
             }
             Puts("======================================");
-        }
-
-        private bool ValidateSettings(ConfigData.Settings settings, string settingName)
-        {
-            bool changed = false;
-
-            if (settings.FireRocketChance <= 0)
-            {
-                Puts($"Invalid FireRocketChance in {settingName} ({settings.FireRocketChance}) - setting to 20");
-                settings.FireRocketChance = 20;
-                changed = true;
-            }
-
-            if (settings.Radius <= 0)
-            {
-                Puts($"Invalid Radius in {settingName} ({settings.Radius}) - setting to 300");
-                settings.Radius = 300f;
-                changed = true;
-            }
-
-            if (settings.RocketAmount <= 0)
-            {
-                Puts($"Invalid RocketAmount in {settingName} ({settings.RocketAmount}) - setting to 45");
-                settings.RocketAmount = 45;
-                changed = true;
-            }
-
-            if (settings.Duration <= 0)
-            {
-                Puts($"Invalid Duration in {settingName} ({settings.Duration}) - setting to 120");
-                settings.Duration = 120;
-                changed = true;
-            }
-
-            // Validate ItemDropControl
-            if (settings.ItemDropControl == null)
-            {
-                Puts($"ItemDropControl in {settingName} is null - creating defaults");
-                settings.ItemDropControl = new ConfigData.Drops
-                {
-                    EnableItemDrop = true,
-                    ItemsToDrop = CreateDefaultItemDrops(settingName)
-                };
-                changed = true;
-            }
-
-            if (settings.ItemDropControl.ItemsToDrop == null || settings.ItemDropControl.ItemsToDrop.Length == 0)
-            {
-                Puts($"ItemsToDrop in {settingName} is null or empty - creating defaults");
-                settings.ItemDropControl.ItemsToDrop = CreateDefaultItemDrops(settingName);
-                changed = true;
-            }
-            else
-            {
-                // Validate each item drop
-                for (int i = 0; i < settings.ItemDropControl.ItemsToDrop.Length; i++)
-                {
-                    var item = settings.ItemDropControl.ItemsToDrop[i];
-                    if (item == null)
-                    {
-                        Puts($"ItemDrop #{i} in {settingName} is null - removing");
-                        var itemList = new List<ItemDrop>(settings.ItemDropControl.ItemsToDrop);
-                        itemList.RemoveAt(i);
-                        settings.ItemDropControl.ItemsToDrop = itemList.ToArray();
-                        i--; // Adjust index after removal
-                        changed = true;
-                        continue;
-                    }
-
-                    if (string.IsNullOrEmpty(item.Shortname))
-                    {
-                        Puts($"ItemDrop #{i} in {settingName} has invalid shortname - setting to 'stones'");
-                        item.Shortname = "stones";
-                        changed = true;
-                    }
-
-                    if (item.Minimum < 0)
-                    {
-                        Puts($"ItemDrop #{i} in {settingName} has invalid Minimum ({item.Minimum}) - setting to 0");
-                        item.Minimum = 0;
-                        changed = true;
-                    }
-
-                    if (item.Maximum < item.Minimum)
-                    {
-                        Puts($"ItemDrop #{i} in {settingName} has invalid Maximum ({item.Maximum}) - setting to {item.Minimum + 10}");
-                        item.Maximum = item.Minimum + 10;
-                        changed = true;
-                    }
-                }
-            }
-
-            return changed;
-        }
-
-        private ItemDrop[] CreateDefaultItemDrops(string settingName)
-        {
-            switch (settingName)
-            {
-                case "Mild":
-                    return new ItemDrop[]
-                    {
-                        new ItemDrop { Maximum = 120, Minimum = 80, Shortname = "stones" },
-                        new ItemDrop { Maximum = 50, Minimum = 25, Shortname = "metal.ore" }
-                    };
-                case "Optimal":
-                    return new ItemDrop[]
-                    {
-                        new ItemDrop { Maximum = 250, Minimum = 160, Shortname = "stones" },
-                        new ItemDrop { Maximum = 120, Minimum = 60, Shortname = "metal.fragments" },
-                        new ItemDrop { Maximum = 50, Minimum = 20, Shortname = "hq.metal.ore" }
-                    };
-                case "Extreme":
-                    return new ItemDrop[]
-                    {
-                        new ItemDrop { Maximum = 400, Minimum = 250, Shortname = "stones" },
-                        new ItemDrop { Maximum = 300, Minimum = 125, Shortname = "metal.fragments" },
-                        new ItemDrop { Maximum = 50, Minimum = 20, Shortname = "metal.refined" },
-                        new ItemDrop { Maximum = 120, Minimum = 45, Shortname = "sulfur.ore" }
-                    };
-                default:
-                    return new ItemDrop[]
-                    {
-                        new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "stones" }
-                    };
-            }
-        }
-
-        private ConfigData.Settings CreateDefaultMildSettings()
-        {
-            return new ConfigData.Settings
-            {
-                FireRocketChance = 30,
-                Radius = 500f,
-                Duration = 240,
-                RocketAmount = 20,
-                ItemDropControl = new ConfigData.Drops
-                {
-                    EnableItemDrop = true,
-                    ItemsToDrop = CreateDefaultItemDrops("Mild")
-                }
-            };
-        }
-
-        private ConfigData.Settings CreateDefaultOptimalSettings()
-        {
-            return new ConfigData.Settings
-            {
-                FireRocketChance = 20,
-                Radius = 300f,
-                Duration = 120,
-                RocketAmount = 45,
-                ItemDropControl = new ConfigData.Drops
-                {
-                    EnableItemDrop = true,
-                    ItemsToDrop = CreateDefaultItemDrops("Optimal")
-                }
-            };
-        }
-
-        private ConfigData.Settings CreateDefaultExtremeSettings()
-        {
-            return new ConfigData.Settings
-            {
-                FireRocketChance = 10,
-                Radius = 100f,
-                Duration = 30,
-                RocketAmount = 70,
-                ItemDropControl = new ConfigData.Drops
-                {
-                    EnableItemDrop = true,
-                    ItemsToDrop = CreateDefaultItemDrops("Extreme")
-                }
-            };
         }
 
         protected override void LoadDefaultConfig()
@@ -1355,14 +2648,14 @@ namespace Oxide.Plugins
                     EnableAutomaticEvents = true,
                     EventTimers = new ConfigData.Timers
                     {
-                        EventInterval = 30,
-                        RandomTimerMax = 45,
-                        RandomTimerMin = 15,
+                        EventInterval = 120,
+                        RandomTimerMax = 240,
+                        RandomTimerMin = 120,
                         UseRandomTimer = false
                     },
                     GlobalDropMultiplier = 1.0f,
                     NotifyEvent = true,
-                    MinimumPlayerCount = 2,
+                    MinimumPlayerCount = 1,
                     PerformanceMonitoring = new ConfigData.PerformanceSettings
                     {
                         EnableFPSCheck = true,
@@ -1383,11 +2676,86 @@ namespace Oxide.Plugins
                         EnableMapMarkers = true
                     }
                 },
+                Logging = new ConfigData.LoggingOptions
+                {
+                    PublicWebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+                    PrivateAdminWebhookURL = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
+                    LogToConsole = true,
+                    LogToPublicDiscord = false,
+                    LogToPrivateDiscord = true,
+                    ShowInGameMessages = true,
+                    MinimumDamageThreshold = 0.5f,
+                    DiscordImpactSettings = new ConfigData.DiscordImpactOptions
+                    {
+                        LogMeteorEvents = true,
+                        LogPlayerImpacts = true,
+                        LogStructureImpacts = false
+                    },
+                    DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
+                    {
+                        EnableRateLimit = true,
+                        ImpactMessageCooldown = 2.0f,
+                        MaxImpactsPerMinute = 20
+                    }
+                },
                 z_IntensitySettings = new ConfigData.IntensityOptions
                 {
-                    Settings_Mild = CreateDefaultMildSettings(),
-                    Settings_Optimal = CreateDefaultOptimalSettings(),
-                    Settings_Extreme = CreateDefaultExtremeSettings()
+                    Settings_Mild = new ConfigData.Settings
+                    {
+                        FireRocketChance = 30,
+                        Radius = 500f,
+                        Duration = 240,
+                        RocketAmount = 20,
+                        ItemDropControl = new ConfigData.Drops
+                        {
+                            EnableItemDrop = true,
+                            ItemsToDrop = new ItemDrop[]
+                            {
+                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "stones" },
+                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "metal.ore" },
+                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "sulfur.ore" },
+                                new ItemDrop { Maximum = 20, Minimum = 10, Shortname = "scrap" }
+                            }
+                        }
+                    },
+                    Settings_Medium = new ConfigData.Settings
+                    {
+                        FireRocketChance = 20,
+                        Radius = 300f,
+                        Duration = 120,
+                        RocketAmount = 45,
+                        ItemDropControl = new ConfigData.Drops
+                        {
+                            EnableItemDrop = true,
+                            ItemsToDrop = new ItemDrop[]
+                            {
+                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "stones" },
+                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "metal.fragments" },
+                                new ItemDrop { Maximum = 30, Minimum = 15, Shortname = "hq.metal.ore" },
+                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "sulfur.ore" },
+                                new ItemDrop { Maximum = 50, Minimum = 20, Shortname = "scrap" }
+                            }
+                        }
+                    },
+                    Settings_Extreme = new ConfigData.Settings
+                    {
+                        FireRocketChance = 10,
+                        Radius = 100f,
+                        Duration = 30,
+                        RocketAmount = 70,
+                        ItemDropControl = new ConfigData.Drops
+                        {
+                            EnableItemDrop = true,
+                            ItemsToDrop = new ItemDrop[]
+                            {
+                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "stones" },
+                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "metal.fragments" },
+                                new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "hq.metal.ore" },
+                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "sulfur.ore" },
+                                new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "scrap" }
+                            }
+                        }
+                    }
                 }
             };
             SaveConfig(config);
@@ -1401,30 +2769,46 @@ namespace Oxide.Plugins
         string msg(string key, string playerId = "") => lang.GetMessage(key, this, playerId);
         Dictionary<string, string> Messages = new Dictionary<string, string>
         {
-            {"incoming", "Meteor Shower Incoming" },
-            {"help1", "/cb onplayer <opt:playername> - Calls a event on your position, or the player specified"},
+            {"warningIncoming", "[Celestial Barrage Event] In <color=#00BFFF>{0}</color> seconds!" },
+            {"incoming", "Celestial Barrage Incoming" },
+            {"help1", "/cb onplayer <opt:playername> - Calls a random event on your position, or the player specified"},
             {"help2", "/cb onplayer_extreme <opt:playername> - Starts a extreme event on your position, or the player specified"},
-            {"help3", "/cb onplayer_mild <opt:playername> - Starts a optimal event on your position, or the player specified"},
-            {"help4", "/cb barrage - Fire a barrage of rockets from your position"},
-            {"help5", "/cb random - Calls a event at a random postion"},
-            {"help6", "/cb intervals <amount> - Change the time between events"},
-            {"help7", "/cb damagescale <amount> - Change the damage scale"},
-            {"help8", "/cb togglemsg - Toggle public event broadcast"},
+            {"help3", "/cb onplayer_medium <opt:playername> - Starts a medium event on your position, or the player specified"},
+            {"help4", "/cb onplayer_mild <opt:playername> - Starts a mild event on your position, or the player specified"},
+            {"help5", "/cb barrage - Fire a barrage of rockets from your position"},
+            {"help6", "/cb random - Calls a event at a random postion"},
+            {"help7", "Console: cb.random - Calls a random event"},
+            {"help8", "Console: cb.onposition x z - Calls an event at coordinates"},
             {"calledOn", "Event called on {0}'s position"},
             {"noPlayer", "No player found with that name"},
             {"onPos", "Event called on your position"},
             {"Extreme", "Extreme"},
+            {"Medium", "Medium"},
             {"Mild", "Mild" },
             {"randomCall", "Event called on random position"},
             {"invalidParam", "Invalid parameter '{0}'"},
-            {"smallInter", "Event intervals under 4 minutes are not allowed"},
-            {"interSet", "Event intervals set to {0} minutes"},
-            {"dropMulti", "Global item drop multiplier set to "},
-            {"damageMulti", "Damage scale set to "},
-            {"notifDeAct", "Event notification de-activated"},
-            {"notifAct", "Event notification activated"},
             {"unknown", "Unknown parameter '{0}'"}
         };
+        #endregion
+
+        #region MapHelper
+        internal static class MapHelper
+        {
+            internal static Vector2Int PositionToGrid(Vector3 position)
+            {
+                float mapSize = TerrainMeta.Size.x;
+                float gridSize = mapSize / 26f;
+                int x = Mathf.FloorToInt((position.x + mapSize / 2f) / gridSize);
+                int z = Mathf.FloorToInt((mapSize / 2f - position.z) / gridSize); // Fix Z coordinate calculation
+                return new Vector2Int(x, z);
+            }
+
+            internal static string GridToString(Vector2Int grid)
+            {
+                if (grid.x < 0 || grid.x > 25 || grid.y < 0 || grid.y > 25) return "??";
+                return $"{(char)('A' + grid.x)}{grid.y}";
+            }
+        }
         #endregion
 
     }
