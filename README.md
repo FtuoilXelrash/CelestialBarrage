@@ -255,6 +255,10 @@ We welcome contributions! To get started:
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
+## 🙏 Acknowledgments
+
+Special thanks to the **[Rain of Fire](https://umod.org/plugins/rain-of-fire)** plugin, which served as inspiration and a valuable learning tool during the development of CelestialBarrage. While CelestialBarrage has evolved into its own unique implementation with advanced features like three intensity levels, Discord integration, and sophisticated configuration options, the foundational concept of meteor events was inspired by this original work.
+
 ## 👨‍💻 Author
 
 **Ftuoil Xelrash**
