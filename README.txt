@@ -214,7 +214,6 @@ SUPPORT & COMMUNITY
 
 - Report Issues: https://github.com/FtuoilXelrash/CelestialBarrage/issues
 - Discord Support: https://discord.gg/G8mfZH2TMp
-- Umod Page: https://umod.org/plugins/celestial-barrage
 - Download Latest: https://github.com/FtuoilXelrash/CelestialBarrage/releases
 
 CONTRIBUTING

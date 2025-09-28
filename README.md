@@ -239,7 +239,6 @@ void OnCelestialBarrageImpact(BaseCombatEntity entity, HitInfo info, string enti
 
 - 🐛 **[Report Issues](https://github.com/FtuoilXelrash/CelestialBarrage/issues)** - Bug reports and feature requests
 - 💬 **[Discord Support](https://discord.gg/G8mfZH2TMp)** - Join our community for help and discussions
-- 📖 **[Umod Page](https://umod.org/plugins/celestial-barrage)** - Official plugin listing
 - 📥 **[Download Latest](https://github.com/FtuoilXelrash/CelestialBarrage/releases)** - Always get the newest version
 
 ## 🤝 Contributing
