@@ -2,7 +2,7 @@ CelestialBarrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.20
+Version: 0.0.610
 License: MIT
 Downloads: Available on GitHub
 
@@ -11,13 +11,13 @@ Transform your Rust server with spectacular meteor shower events that rain down 
 KEY FEATURES
 
 - Dynamic Meteor Events - Automatic scheduling with configurable random or fixed timers
-- Three Intensity Levels - Mild (beginner), Optimal (balanced), Extreme (hardcore)
+- Three Intensity Levels - Mild (beginner), Medium (balanced), Extreme (hardcore)
 - Advanced Rocket System - Fire rockets, realistic physics, smart spread patterns
 - Rewarding Loot System - Tiered rewards with stones, metal ore, fragments, and more
 - Real-time Configuration - Change settings without server restart
 - Smart Map Integration - Respects boundaries, terrain detection, safe zones
 - Performance Optimized - Minimal server impact with automatic cleanup
-- Plugin Integration - Works with PopupNotifications and Discord webhooks
+- Discord Integration - Works with Discord webhooks
 
 QUICK INSTALLATION
 
@@ -32,7 +32,6 @@ REQUIREMENTS
 
 - Rust Dedicated Server
 - Umod (Oxide) framework
-- Optional: PopupNotifications for enhanced messaging
 - Optional: rServerMessages for Discord integration
 
 COMMANDS & USAGE
@@ -44,14 +43,11 @@ Admin Commands (Chat):
 /cb onplayer <player>        Start optimal event on target player
 /cb random                   Start random map event
 /cb barrage                  Fire rocket barrage from your position
-/cb intervals <min>          Change event intervals
-/cb damagescale <mult>       Adjust damage multiplier
-/cb droprate <mult>          Change drop rate multiplier
-/cb togglemsg                Toggle event notifications
 
 Intensity Variants:
 
 /cb onplayer_mild            20 rockets, 240s duration, 500m radius (New players, learning)
+/cb onplayer_medium          45 rockets, 120s duration, 300m radius (Balanced gameplay)
 /cb onplayer_extreme         70 rockets, 30s duration, 100m radius (Hardcore, high risk/reward)
 
 Console Commands:
@@ -87,7 +83,7 @@ Mild Settings (Beginner Friendly):
 - Rockets: 20
 - Drops: Stones (80-120), Metal Ore (25-50)
 
-Optimal Settings (Balanced):
+Medium Settings (Balanced):
 - Fire Rocket Chance: 20%
 - Radius: 300m
 - Duration: 120 seconds
@@ -156,12 +152,6 @@ Low Population (< 50 players):
 }
 
 PLUGIN INTEGRATION
-
-PopupNotifications:
-When installed, provides enhanced visual alerts:
-- Screen-centered warnings
-- Rich popup notifications
-- Fallback to chat when unavailable
 
 Discord Integration (rServerMessages):
 Supports automatic Discord announcements:
