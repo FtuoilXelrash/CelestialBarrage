@@ -7,10 +7,11 @@ using System.Collections;
 using Oxide.Core.Libraries.Covalence;
 using Newtonsoft.Json;
 using System.Text;
+using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.610")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.630")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -309,8 +310,16 @@ namespace Oxide.Plugins
             // Check minimum player requirement
             if (configData?.Options?.MinimumPlayerCount != null && BasePlayer.activePlayerList.Count < configData.Options.MinimumPlayerCount)
             {
-                LogMessage($"CELESTIAL BARRAGE SKIPPED\nNot enough players online ({BasePlayer.activePlayerList.Count} < {configData.Options.MinimumPlayerCount})\n{eventType}", "admin");
-                return false; 
+                string reason = "Not enough players online";
+                string additionalInfo = $"Current Players: {BasePlayer.activePlayerList.Count} / {configData.Options.MinimumPlayerCount} minimum required";
+                SendSkippedEventDiscord(reason, eventType, additionalInfo);
+
+                // Keep console logging
+                if (configData.Logging.LogToConsole)
+                {
+                    Puts($"CELESTIAL BARRAGE SKIPPED - Not enough players online ({BasePlayer.activePlayerList.Count} < {configData.Options.MinimumPlayerCount}) - {eventType}");
+                }
+                return false;
             }
 
             // Check performance monitoring
@@ -319,7 +328,15 @@ namespace Oxide.Plugins
                 float currentFPS = 1f / UnityEngine.Time.unscaledDeltaTime;
                 if (currentFPS < configData.Options.PerformanceMonitoring.MinimumFPS)
                 {
-                    LogMessage($"CELESTIAL BARRAGE CANCELLED\nLow FPS detected ({currentFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS})\n{eventType}", "admin");
+                    string reason = "Server performance below threshold";
+                    string additionalInfo = $"Current FPS: {currentFPS:F1} / {configData.Options.PerformanceMonitoring.MinimumFPS} minimum required";
+                    SendSkippedEventDiscord(reason, eventType, additionalInfo);
+
+                    // Keep console logging
+                    if (configData.Logging.LogToConsole)
+                    {
+                        Puts($"CELESTIAL BARRAGE CANCELLED - Low FPS detected ({currentFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS}) - {eventType}");
+                    }
                     return false;
                 }
             }
@@ -449,7 +466,15 @@ namespace Oxide.Plugins
                         float delayedFPS = 1f / UnityEngine.Time.unscaledDeltaTime;
                         if (delayedFPS < configData.Options.PerformanceMonitoring.MinimumFPS)
                         {
-                            LogMessage($"CELESTIAL BARRAGE CANCELLED AFTER COUNTDOWN\nLow FPS detected ({delayedFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS})\n{eventType}", "admin");
+                            string reason = "Performance dropped during countdown";
+                            string additionalInfo = $"FPS at start: {delayedFPS:F1} / {configData.Options.PerformanceMonitoring.MinimumFPS} minimum required";
+                            SendSkippedEventDiscord(reason, eventType, additionalInfo);
+
+                            // Keep console logging
+                            if (configData.Logging.LogToConsole)
+                            {
+                                Puts($"CELESTIAL BARRAGE CANCELLED AFTER COUNTDOWN - Low FPS detected ({delayedFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS}) - {eventType}");
+                            }
                             return; // Block the event after countdown too
                         }
                     }
@@ -800,6 +825,10 @@ namespace Oxide.Plugins
                 // If even basic rocket fails, try one more fallback
                 if (projectileItem == null)
                 {
+                    string reason = "Critical error: Missing rocket ammo items";
+                    string additionalInfo = "Unable to find any rocket projectiles in item definitions";
+                    SendSkippedEventDiscord(reason, "System Check", additionalInfo);
+
                     PrintError("Critical: Cannot find any rocket ammo items! Meteor event cancelled.");
                     return null; // Return null to indicate failure
                 }
@@ -1048,16 +1077,6 @@ namespace Oxide.Plugins
                 Vector3 pos = entity.transform.position;
                 string teleportCmd = $"teleportpos {pos.x:F1} {pos.y:F1} {pos.z:F1}";
                 
-                string impactMessage;
-                if (isPlayer)
-                {
-                    impactMessage = $"METEOR IMPACT: {entityType}\nPlayer: {ownerInfo}\nWeapon: {damageSource}\n{damageInfo}\n{teleportCmd}";
-                }
-                else
-                {
-                    impactMessage = $"METEOR IMPACT: {entityType}\nOwner: {ownerInfo}\nWeapon: {damageSource}\n{damageInfo}\n{teleportCmd}";
-                }
-                
                 // Enhanced debug logging
                 if (configData?.Logging?.LogToConsole == true)
                 {
@@ -1065,24 +1084,21 @@ namespace Oxide.Plugins
                     if (damageSource.Contains("rocket")) projectileType = "Rocket";
                     else if (isCatapultImpact) projectileType = "Catapult";
                     else if (isGrenadeImpact) projectileType = "Grenade";
-                    
+
                     Puts($"[DEBUG] LOGGING IMPACT - Type: {projectileType}, Weapon: {damageSource}, Damage: {totalDamage:F1}");
                 }
-                
-                // Log to console/admin always
-                LogMessage(impactMessage, "admin");
-                
-                // Send Discord message based on new config settings
-                bool shouldSendDiscord = false;
-                if (isPlayer && configData.Logging.DiscordImpactSettings.LogPlayerImpacts)
-                    shouldSendDiscord = true;
-                else if (isPlayerStructure && configData.Logging.DiscordImpactSettings.LogStructureImpacts)
-                    shouldSendDiscord = true;
-                
-                if (shouldSendDiscord && configData.Logging.LogToPrivateDiscord && IsValidWebhookUrl(configData.Logging.PrivateAdminWebhookURL))
+
+                // Console logging for admin monitoring
+                if (configData.Logging.LogToConsole)
                 {
-                    QueueDiscordMessage(configData.Logging.PrivateAdminWebhookURL, impactMessage, true, "impact");
+                    string consoleMessage = isPlayer ?
+                        $"METEOR IMPACT: {entityType} - Player: {ownerInfo} - Weapon: {damageSource} - {damageInfo}" :
+                        $"METEOR IMPACT: {entityType} - Owner: {ownerInfo} - Weapon: {damageSource} - {damageInfo}";
+                    Puts(consoleMessage);
                 }
+
+                // Send beautiful Discord embed message
+                SendMeteorImpactDiscord(entityType, ownerInfo, damageSource, damageInfo, teleportCmd, isPlayer, isPlayerStructure);
                 
                 // Fire the hook for other plugins
                 Interface.CallHook("OnCelestialBarrageImpact", entity, info, entityType, ownerInfo);
@@ -1396,6 +1412,139 @@ namespace Oxide.Plugins
                     if (configData.Logging.LogToConsole)
                     {
                         Puts($"Public Discord webhook error response: {response}");
+                    }
+                }
+            }, this, Core.Libraries.RequestMethod.POST, headers);
+        }
+
+        private void SendSkippedEventDiscord(string reason, string eventType, string additionalInfo = "")
+        {
+            // Only send if admin Discord is enabled
+            if (!configData.Logging.LogToPrivateDiscord || !IsValidWebhookUrl(configData.Logging.PrivateAdminWebhookURL))
+                return;
+
+            // Create rich embed for skipped event
+            var embed = new
+            {
+                title = "⏭️ Event Skipped",
+                color = 0x95a5a6, // Gray color for skipped events
+                timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                fields = new[]
+                {
+                    new { name = "❌ Reason", value = reason, inline = true },
+                    new { name = "🎮 Event Type", value = eventType, inline = true },
+                    new { name = "📅 Time", value = $"<t:{((System.DateTimeOffset)System.DateTime.UtcNow).ToUnixTimeSeconds()}:F>", inline = false }
+                }
+            };
+
+            // Add additional info field if provided
+            var fieldsList = embed.fields.ToList();
+            if (!string.IsNullOrEmpty(additionalInfo))
+            {
+                fieldsList.Add(new { name = "ℹ️ Details", value = additionalInfo, inline = false });
+            }
+
+            var finalEmbed = new
+            {
+                title = embed.title,
+                color = embed.color,
+                timestamp = embed.timestamp,
+                fields = fieldsList.ToArray()
+            };
+
+            var payload = new
+            {
+                embeds = new[] { finalEmbed }
+            };
+
+            var json = JsonConvert.SerializeObject(payload);
+            var headers = new Dictionary<string, string> { ["Content-Type"] = "application/json" };
+
+            webrequest.Enqueue(configData.Logging.PrivateAdminWebhookURL, json, (code, response) =>
+            {
+                if (code != 200 && code != 204)
+                {
+                    PrintError($"Failed to send skipped event Discord embed. Response code: {code}");
+                    if (configData.Logging.LogToConsole)
+                    {
+                        Puts($"Discord webhook error response: {response}");
+                    }
+                }
+            }, this, Core.Libraries.RequestMethod.POST, headers);
+        }
+
+        private void SendMeteorImpactDiscord(string entityType, string ownerInfo, string damageSource, string damageInfo, string teleportCmd, bool isPlayer, bool isPlayerStructure)
+        {
+            // Only send if admin Discord is enabled and impact logging is configured
+            if (!configData.Logging.LogToPrivateDiscord || !IsValidWebhookUrl(configData.Logging.PrivateAdminWebhookURL))
+                return;
+
+            // Check if this type of impact should be logged
+            if (isPlayer && !configData.Logging.DiscordImpactSettings.LogPlayerImpacts)
+                return;
+            if (isPlayerStructure && !configData.Logging.DiscordImpactSettings.LogStructureImpacts)
+                return;
+
+            // Determine embed properties based on impact type
+            int color;
+            string title;
+            string targetIcon;
+            string targetLabel;
+
+            if (isPlayer)
+            {
+                color = 0xe74c3c; // Red for player impacts
+                title = "💥 Player Impact";
+                targetIcon = "👤";
+                targetLabel = "Player";
+            }
+            else if (isPlayerStructure)
+            {
+                color = 0xf39c12; // Orange for structure impacts
+                title = "🏗️ Structure Impact";
+                targetIcon = "🏠";
+                targetLabel = "Building";
+            }
+            else
+            {
+                color = 0x3498db; // Blue for other entities
+                title = "🎯 Entity Impact";
+                targetIcon = "🎪";
+                targetLabel = "Entity";
+            }
+
+            // Create rich embed for meteor impact
+            var embed = new
+            {
+                title = title,
+                color = color,
+                timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                fields = new[]
+                {
+                    new { name = $"{targetIcon} {targetLabel}", value = isPlayer ? ownerInfo : $"{entityType}\nOwner: {ownerInfo}", inline = true },
+                    new { name = "💀 Damage", value = damageInfo, inline = true },
+                    new { name = "🚀 Weapon", value = damageSource, inline = true },
+                    new { name = "🎮 Teleport", value = $"`{teleportCmd}`", inline = false }
+                }
+            };
+
+            var payload = new
+            {
+                embeds = new[] { embed }
+            };
+
+            var json = JsonConvert.SerializeObject(payload);
+            var headers = new Dictionary<string, string> { ["Content-Type"] = "application/json" };
+
+            // Send directly using webrequest to avoid conflicts with plain text queue system
+            webrequest.Enqueue(configData.Logging.PrivateAdminWebhookURL, json, (code, response) =>
+            {
+                if (code != 200 && code != 204)
+                {
+                    PrintError($"Failed to send meteor impact Discord embed. Response code: {code}");
+                    if (configData.Logging.LogToConsole)
+                    {
+                        Puts($"Discord webhook error response: {response}");
                     }
                 }
             }, this, Core.Libraries.RequestMethod.POST, headers);
