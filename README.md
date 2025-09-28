@@ -177,8 +177,39 @@ The plugin creates `oxide/config/CelestialBarrage.json` with these key settings:
 ### 💬 Discord Integration (rServerMessages)
 Supports automatic Discord announcements:
 - Event start notifications
-- Hook: `OnMeteorShowerStarted`
 - Configurable message keywords
+
+### 🔧 Plugin Development Hook
+
+CelestialBarrage provides a hook for other plugin developers:
+
+**`OnCelestialBarrageImpact`**
+```csharp
+void OnCelestialBarrageImpact(BaseCombatEntity entity, HitInfo info, string entityType, string ownerInfo)
+```
+
+**Parameters:**
+- `entity` - The entity that was hit by the meteor
+- `info` - HitInfo containing damage and impact details
+- `entityType` - Type of entity hit ("Player", structure name, etc.)
+- `ownerInfo` - Player name or owner information
+
+**Example Usage:**
+```csharp
+void OnCelestialBarrageImpact(BaseCombatEntity entity, HitInfo info, string entityType, string ownerInfo)
+{
+    if (entityType == "Player")
+    {
+        Puts($"Player {ownerInfo} was hit by a meteor for {info.damageTypes.Total()} damage!");
+        // Add custom effects, notifications, or logging
+    }
+    else if (entity.OwnerID != 0)
+    {
+        Puts($"Structure {entityType} owned by {ownerInfo} was hit by a meteor!");
+        // Handle structure impacts
+    }
+}
+```
 
 ## 🐛 Troubleshooting
 
