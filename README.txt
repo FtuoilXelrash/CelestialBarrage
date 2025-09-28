@@ -1,4 +1,4 @@
-CelestialBarrage
+Celestial Barrage
 
 Game: Rust
 Framework: Umod
@@ -6,7 +6,7 @@ Version: 0.0.610
 License: MIT
 Downloads: Available on GitHub
 
-Transform your Rust server with spectacular meteor shower events that rain down rockets from the sky! CelestialBarrage brings dynamic, configurable celestial events with three intensity levels, automatic scheduling, and rewarding loot drops that will keep your players engaged and coming back for more.
+Transform your Rust server with spectacular meteor shower events that rain down rockets from the sky! Celestial Barrage brings dynamic, configurable celestial events with three intensity levels, automatic scheduling, and rewarding loot drops that will keep your players engaged and coming back for more.
 
 KEY FEATURES
 
@@ -160,7 +160,7 @@ Built-in Discord webhook support:
 
 Plugin Development Hook:
 
-CelestialBarrage provides a hook for other plugin developers:
+Celestial Barrage provides a hook for other plugin developers:
 
 OnCelestialBarrageImpact Hook:
 void OnCelestialBarrageImpact(BaseCombatEntity entity, HitInfo info, string entityType, string ownerInfo)
@@ -240,4 +240,4 @@ Ftuoil Xelrash
 - GitHub: @FtuoilXelrash
 - Discord: Plugin Support Server (https://discord.gg/G8mfZH2TMp)
 
-Star this repository if CelestialBarrage enhances your Rust server!
+Star this repository if Celestial Barrage enhances your Rust server!
