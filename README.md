@@ -1,4 +1,4 @@
-# CelestialBarrage
+# Celestial Barrage
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
-Transform your Rust server with **spectacular meteor shower events** that rain down rockets from the sky! CelestialBarrage brings dynamic, configurable celestial events with three intensity levels, automatic scheduling, and rewarding loot drops that will keep your players engaged and coming back for more.
+Transform your Rust server with **spectacular meteor shower events** that rain down rockets from the sky! Celestial Barrage brings dynamic, configurable celestial events with three intensity levels, automatic scheduling, and rewarding loot drops that will keep your players engaged and coming back for more.
 
 <div align="center">
   <img src="meteor-shower-01.jpg" alt="Meteor shower raining down" width="45%">
@@ -181,7 +181,7 @@ Built-in Discord webhook support:
 
 ### 🔧 Plugin Development Hook
 
-CelestialBarrage provides a hook for other plugin developers:
+Celestial Barrage provides a hook for other plugin developers:
 
 **`OnCelestialBarrageImpact`**
 ```csharp
@@ -267,4 +267,4 @@ Special thanks to the **[Rain of Fire](https://umod.org/plugins/rain-of-fire)** 
 
 ---
 
-⭐ **Star this repository if CelestialBarrage enhances your Rust server!** ⭐
+⭐ **Star this repository if Celestial Barrage enhances your Rust server!** ⭐
