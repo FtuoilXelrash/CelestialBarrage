@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.630")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.646")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -1006,17 +1006,31 @@ namespace Oxide.Plugins
             }
             
             // Check if damage is too low to log (configurable threshold)
-            // BUT allow catapult impacts even with 0 damage since they may cause structural damage differently
+            // ALWAYS allow player impacts (any damage) and grenade impacts (special mechanics)
             float totalDamage = info?.damageTypes?.Total() ?? 0f;
             bool isCatapultImpact = damageSource.Contains("boulder") || damageSource.Contains("catapult");
             bool isGrenadeImpact = damageSource.Contains("40mm") || damageSource.Contains("grenade");
-            
-            if (totalDamage < configData.Logging.MinimumDamageThreshold && !isCatapultImpact && !isGrenadeImpact)
+            bool isSmokeRocket = damageSource.Contains("smoke");
+
+            // Filter smoke rockets from structures/entities if configured (always 1.0 damage spam) but keep for players
+            if (isSmokeRocket && !isPlayer && configData.Logging.DiscordImpactSettings.FilterSmokeRockets)
             {
-                // Damage too low and not a special projectile type - don't log this impact
                 if (configData?.Logging?.LogToConsole == true)
                 {
-                    Puts($"[DEBUG] Impact filtered due to low damage: {totalDamage:F1} < {configData.Logging.MinimumDamageThreshold:F1}");
+                    string impactType = isPlayerStructure ? "Structure" : "Entity";
+                    Puts($"[DEBUG] Smoke rocket impact filtered on {impactType} - {damageSource} - Damage: {totalDamage:F1} (FilterSmokeRockets enabled)");
+                }
+                return;
+            }
+
+            if (totalDamage < configData.Logging.MinimumDamageThreshold && !isPlayer && !isGrenadeImpact)
+            {
+                // Damage too low and not a player/grenade impact - don't log this impact
+                if (configData?.Logging?.LogToConsole == true)
+                {
+                    string impactType = isPlayer ? "Player" : (isPlayerStructure ? "Structure" : "Entity");
+                    string specialType = isCatapultImpact ? " (Catapult)" : isGrenadeImpact ? " (Grenade)" : isSmokeRocket ? " (Smoke)" : "";
+                    Puts($"[DEBUG] Impact filtered due to low damage: {totalDamage:F1} < {configData.Logging.MinimumDamageThreshold:F1} - {impactType}{specialType}");
                 }
                 return;
             }
@@ -2028,6 +2042,7 @@ namespace Oxide.Plugins
                 public bool LogMeteorEvents { get; set; }
                 public bool LogPlayerImpacts { get; set; }
                 public bool LogStructureImpacts { get; set; }
+                public bool FilterSmokeRockets { get; set; }
             }
 
             public class DiscordRateLimitOptions
@@ -2257,18 +2272,19 @@ namespace Oxide.Plugins
                     LogToPublicDiscord = false,
                     LogToPrivateDiscord = true,
                     ShowInGameMessages = true,
-                    MinimumDamageThreshold = 0.5f,
+                    MinimumDamageThreshold = 1.0f,
                     DiscordImpactSettings = new ConfigData.DiscordImpactOptions
                     {
                         LogMeteorEvents = true,
                         LogPlayerImpacts = true,
-                        LogStructureImpacts = false
+                        LogStructureImpacts = false,
+                        FilterSmokeRockets = true
                     },
                     DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
                     {
                         EnableRateLimit = true,
-                        ImpactMessageCooldown = 2.0f,
-                        MaxImpactsPerMinute = 20
+                        ImpactMessageCooldown = 1.0f,
+                        MaxImpactsPerMinute = 28
                     }
                 },
                 z_IntensitySettings = new ConfigData.IntensityOptions
@@ -2527,15 +2543,33 @@ namespace Oxide.Plugins
                 }
                 
                 // Validate MinimumDamageThreshold range and handle invalid values
-                if (configData.Logging.MinimumDamageThreshold < 0f || 
-                    configData.Logging.MinimumDamageThreshold > 1000f || 
-                    float.IsNaN(configData.Logging.MinimumDamageThreshold) || 
+                if (configData.Logging.MinimumDamageThreshold < 0f ||
+                    configData.Logging.MinimumDamageThreshold > 1000f ||
+                    float.IsNaN(configData.Logging.MinimumDamageThreshold) ||
                     float.IsInfinity(configData.Logging.MinimumDamageThreshold))
                 {
                     float oldValue = configData.Logging.MinimumDamageThreshold;
                     configData.Logging.MinimumDamageThreshold = defaultConfig.Logging.MinimumDamageThreshold;
                     Puts($"Invalid MinimumDamageThreshold value ({oldValue}), resetting to default ({configData.Logging.MinimumDamageThreshold})");
                     configChanged = true;
+                }
+
+                // Validate DiscordImpactSettings
+                if (configData.Logging.DiscordImpactSettings == null)
+                {
+                    Puts("Adding missing Logging.DiscordImpactSettings section");
+                    configData.Logging.DiscordImpactSettings = defaultConfig.Logging.DiscordImpactSettings;
+                    configChanged = true;
+                }
+                else
+                {
+                    // Check for missing FilterSmokeRockets property (new in v0.0.645)
+                    if (configData.Logging.DiscordImpactSettings.FilterSmokeRockets == default(bool))
+                    {
+                        Puts("Adding missing DiscordImpactSettings.FilterSmokeRockets (default: true)");
+                        configData.Logging.DiscordImpactSettings.FilterSmokeRockets = defaultConfig.Logging.DiscordImpactSettings.FilterSmokeRockets;
+                        configChanged = true;
+                    }
                 }
             }
 
@@ -2687,13 +2721,14 @@ namespace Oxide.Plugins
                     {
                         LogMeteorEvents = true,
                         LogPlayerImpacts = true,
-                        LogStructureImpacts = false
+                        LogStructureImpacts = false,
+                        FilterSmokeRockets = true
                     },
                     DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
                     {
                         EnableRateLimit = true,
-                        ImpactMessageCooldown = 2.0f,
-                        MaxImpactsPerMinute = 20
+                        ImpactMessageCooldown = 1.0f,
+                        MaxImpactsPerMinute = 28
                     }
                 };
                 configChanged = true;
@@ -2833,18 +2868,19 @@ namespace Oxide.Plugins
                     LogToPublicDiscord = false,
                     LogToPrivateDiscord = true,
                     ShowInGameMessages = true,
-                    MinimumDamageThreshold = 0.5f,
+                    MinimumDamageThreshold = 1.0f,
                     DiscordImpactSettings = new ConfigData.DiscordImpactOptions
                     {
                         LogMeteorEvents = true,
                         LogPlayerImpacts = true,
-                        LogStructureImpacts = false
+                        LogStructureImpacts = false,
+                        FilterSmokeRockets = true
                     },
                     DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
                     {
                         EnableRateLimit = true,
-                        ImpactMessageCooldown = 2.0f,
-                        MaxImpactsPerMinute = 20
+                        ImpactMessageCooldown = 1.0f,
+                        MaxImpactsPerMinute = 28
                     }
                 },
                 z_IntensitySettings = new ConfigData.IntensityOptions
