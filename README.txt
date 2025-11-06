@@ -216,6 +216,18 @@ SUPPORT & COMMUNITY
 - Discord Support: https://discord.gg/G8mfZH2TMp
 - Download Latest: https://github.com/FtuoilXelrash/CelestialBarrage/releases
 
+DEVELOPMENT & TESTING SERVER
+
+Darktidia Solo Only - See CelestialBarrage and other custom plugins in action!
+All players are welcome to join our development server where plugins are tested
+and refined in a live environment.
+
+- Server: Darktidia Solo Only | Monthly | 2x | 50% Upkeep | No BP Wipes
+- Find Server: https://www.battlemetrics.com/servers/rust/33277489
+
+Experience the plugin live, test configurations, and provide feedback in a real
+gameplay setting.
+
 CONTRIBUTING
 
 We welcome contributions! To get started:
