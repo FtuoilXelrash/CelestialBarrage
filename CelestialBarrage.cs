@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.646")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.700")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
