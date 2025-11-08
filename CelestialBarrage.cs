@@ -2039,7 +2039,6 @@ namespace Oxide.Plugins
 
             public class DiscordImpactOptions
             {
-                public bool LogMeteorEvents { get; set; }
                 public bool LogPlayerImpacts { get; set; }
                 public bool LogStructureImpacts { get; set; }
                 public bool FilterSmokeRockets { get; set; }
@@ -2275,7 +2274,6 @@ namespace Oxide.Plugins
                     MinimumDamageThreshold = 1.0f,
                     DiscordImpactSettings = new ConfigData.DiscordImpactOptions
                     {
-                        LogMeteorEvents = true,
                         LogPlayerImpacts = true,
                         LogStructureImpacts = false,
                         FilterSmokeRockets = true
@@ -2719,7 +2717,6 @@ namespace Oxide.Plugins
                     MinimumDamageThreshold = oldLogging?.MinimumDamageThreshold ?? 0.5f,
                     DiscordImpactSettings = new ConfigData.DiscordImpactOptions
                     {
-                        LogMeteorEvents = true,
                         LogPlayerImpacts = true,
                         LogStructureImpacts = false,
                         FilterSmokeRockets = true
@@ -2871,7 +2868,6 @@ namespace Oxide.Plugins
                     MinimumDamageThreshold = 1.0f,
                     DiscordImpactSettings = new ConfigData.DiscordImpactOptions
                     {
-                        LogMeteorEvents = true,
                         LogPlayerImpacts = true,
                         LogStructureImpacts = false,
                         FilterSmokeRockets = true
