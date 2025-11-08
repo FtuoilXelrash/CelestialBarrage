@@ -245,13 +245,13 @@ Each intensity level is fully customizable. The DamageMultiplier setting applies
 Global Setting:
 {
   "IntensitySettings": {
-    "DamageMultiplier": 0.2,
+    "DamageMultiplier": 1.0,
     "Mild": { ... },
     "Medium": { ... },
     "Extreme": { ... }
   }
 }
-- DamageMultiplier (float): Global multiplier for all rocket damage (default: 0.2 = 20% damage). Applies to all intensity levels.
+- DamageMultiplier (float): Global multiplier for all rocket damage (default: 1.0 = 100% full damage). Applies to all intensity levels.
 
 Below are the default configurations for each intensity level:
 

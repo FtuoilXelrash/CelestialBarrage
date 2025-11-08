@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.848")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.849")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -2172,7 +2172,7 @@ namespace Oxide.Plugins
                 },
                 IntensitySettings = new ConfigData.IntensityOptions
                 {
-                    DamageMultiplier = 0.2f,
+                    DamageMultiplier = 1.0f,
                     Mild = new ConfigData.Settings
                     {
                         FireRocketChance = 30,
@@ -2719,7 +2719,7 @@ namespace Oxide.Plugins
                 },
                 IntensitySettings = new ConfigData.IntensityOptions
                 {
-                    DamageMultiplier = 0.2f,
+                    DamageMultiplier = 1.0f,
                     Mild = new ConfigData.Settings
                     {
                         FireRocketChance = 30,
