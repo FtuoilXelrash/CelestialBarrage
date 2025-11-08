@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
-[![Version](https://img.shields.io/badge/Version-0.0.825-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
+[![Version](https://img.shields.io/badge/Version-0.0.835-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
@@ -101,31 +101,6 @@ The plugin creates `oxide/config/CelestialBarrage.json` with comprehensive confi
   - **UseRandomTimer** (bool): When `true`, events trigger at random intervals instead of fixed intervals
   - **RandomTimerMin** (int): Minimum seconds for random timer (default: 15 = 15 minutes)
   - **RandomTimerMax** (int): Maximum seconds for random timer (default: 45 = 45 minutes)
-
-### ⏱️ Warning Countdown
-
-The **WarningCountdown** feature adds a pre-event delay before meteor showers begin, giving your server time to prepare and perform a final performance check:
-
-```json
-{
-  "Options": {
-    "WarningCountdown": {
-      "EnableWarning": true,
-      "CountdownSeconds": 10
-    }
-  }
-}
-```
-
-**Settings:**
-- **EnableWarning** (bool): Activates the countdown timer before events start
-- **CountdownSeconds** (float): Number of seconds to delay before meteor event begins (default: 10)
-
-**How It Works:**
-1. When a meteor event is triggered, if WarningCountdown is enabled, a countdown timer starts
-2. During the countdown period, the server rechecks FPS (if `PerformanceMonitoring.EnableFPSCheck` is enabled)
-3. If FPS remains above the minimum threshold → meteor event begins normally
-4. If FPS drops below the minimum → event is **cancelled** and a Discord notification is sent (if configured)
 
 ### ⚡ Performance Monitoring
 
@@ -317,7 +292,7 @@ Each intensity level is fully customizable. Below are the default configurations
 #### Mild Settings (Beginner Friendly)
 ```json
 {
-  "Settings_Mild": {
+  "Mild": {
     "FireRocketChance": 30,
     "Radius": 500.0,
     "Duration": 240,
@@ -344,7 +319,7 @@ Each intensity level is fully customizable. Below are the default configurations
 #### Medium Settings (Balanced)
 ```json
 {
-  "Settings_Medium": {
+  "Medium": {
     "FireRocketChance": 20,
     "Radius": 300.0,
     "Duration": 120,
@@ -371,7 +346,7 @@ Each intensity level is fully customizable. Below are the default configurations
 #### Extreme Settings (Hardcore)
 ```json
 {
-  "Settings_Extreme": {
+  "Extreme": {
     "FireRocketChance": 10,
     "Radius": 100.0,
     "Duration": 30,

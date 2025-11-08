@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.850
+Version: 0.0.835
 License: MIT
 Downloads: Available on GitHub
 
@@ -87,30 +87,6 @@ Option Descriptions:
   - UseRandomTimer (bool): When true, events trigger at random intervals instead of fixed
   - RandomTimerMin (int): Minimum seconds for random timer (default: 15 = 15 minutes)
   - RandomTimerMax (int): Maximum seconds for random timer (default: 45 = 45 minutes)
-
-WARNING COUNTDOWN:
-
-The WarningCountdown feature adds a pre-event delay before meteor showers begin, giving
-your server time to prepare and perform a final performance check:
-
-{
-  "Options": {
-    "WarningCountdown": {
-      "EnableWarning": true,
-      "CountdownSeconds": 10
-    }
-  }
-}
-
-Settings:
-- EnableWarning (bool): Activates the countdown timer before events start
-- CountdownSeconds (float): Number of seconds to delay before meteor event begins (default: 10)
-
-How It Works:
-1. When a meteor event is triggered, if WarningCountdown is enabled, a countdown timer starts
-2. During the countdown period, the server rechecks FPS (if PerformanceMonitoring.EnableFPSCheck is enabled)
-3. If FPS remains above the minimum threshold → meteor event begins normally
-4. If FPS drops below the minimum → event is cancelled and a Discord notification is sent (if configured)
 
 PERFORMANCE MONITORING:
 
@@ -283,7 +259,7 @@ Each intensity level is fully customizable. Below are the default configurations
 
 Mild Settings (Beginner Friendly):
 {
-  "Settings_Mild": {
+  "Mild": {
     "FireRocketChance": 30,
     "Radius": 500.0,
     "Duration": 240,
@@ -307,7 +283,7 @@ Mild Settings (Beginner Friendly):
 
 Medium Settings (Balanced):
 {
-  "Settings_Medium": {
+  "Medium": {
     "FireRocketChance": 20,
     "Radius": 300.0,
     "Duration": 120,
@@ -331,7 +307,7 @@ Medium Settings (Balanced):
 
 Extreme Settings (Hardcore):
 {
-  "Settings_Extreme": {
+  "Extreme": {
     "FireRocketChance": 10,
     "Radius": 100.0,
     "Duration": 30,

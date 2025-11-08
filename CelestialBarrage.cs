@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.850")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.835")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -369,11 +369,11 @@ namespace Oxide.Plugins
             int randomIntensity = UnityEngine.Random.Range(1, 101);
 
             if (randomIntensity <= 50)
-                return (configData.z_IntensitySettings.Settings_Mild, "Mild");
+                return (configData.IntensitySettings.Mild, "Mild");
             else if (randomIntensity <= 80)
-                return (configData.z_IntensitySettings.Settings_Medium, "Medium");
+                return (configData.IntensitySettings.Medium, "Medium");
             else
-                return (configData.z_IntensitySettings.Settings_Extreme, "Extreme");
+                return (configData.IntensitySettings.Extreme, "Extreme");
         }
 
         private bool StartOnPlayer(string playerName, ConfigData.Settings setting, string eventType)
@@ -442,11 +442,11 @@ namespace Oxide.Plugins
 
             // Determine intensity level by comparing settings objects
             string intensity = "Unknown";
-            if (ReferenceEquals(setting, configData.z_IntensitySettings.Settings_Mild))
+            if (ReferenceEquals(setting, configData.IntensitySettings.Mild))
                 intensity = "Mild";
-            else if (ReferenceEquals(setting, configData.z_IntensitySettings.Settings_Medium))
+            else if (ReferenceEquals(setting, configData.IntensitySettings.Medium))
                 intensity = "Medium";
-            else if (ReferenceEquals(setting, configData.z_IntensitySettings.Settings_Extreme))
+            else if (ReferenceEquals(setting, configData.IntensitySettings.Extreme))
                 intensity = "Extreme";
 
             // Log celestial barrage start to console
@@ -454,38 +454,8 @@ namespace Oxide.Plugins
             Vector3 groundPos = GetGroundPosition(origin);
             string teleportCmd = $"teleportpos {groundPos.x:F1} {groundPos.y:F1} {groundPos.z:F1}";
 
-            // Show warning countdown if enabled
-            if (configData.Options.WarningCountdown.EnableWarning)
-            {
-
-                // Wait for countdown before starting
-                timer.Once(configData.Options.WarningCountdown.CountdownSeconds, () => {
-                    // Check FPS again after countdown delay
-                    if (configData?.Options?.PerformanceMonitoring?.EnableFPSCheck == true)
-                    {
-                        float delayedFPS = 1f / UnityEngine.Time.unscaledDeltaTime;
-                        if (delayedFPS < configData.Options.PerformanceMonitoring.MinimumFPS)
-                        {
-                            string reason = "Performance dropped during countdown";
-                            string additionalInfo = $"FPS at start: {delayedFPS:F1} / {configData.Options.PerformanceMonitoring.MinimumFPS} minimum required";
-                            SendSkippedEventDiscord(reason, eventType, additionalInfo);
-
-                            // Keep console logging
-                            if (configData.Logging.LogToConsole)
-                            {
-                                Puts($"CELESTIAL BARRAGE CANCELLED AFTER COUNTDOWN - Low FPS detected ({delayedFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS}) - {eventType}");
-                            }
-                            return; // Block the event after countdown too
-                        }
-                    }
-                    StartMeteorShowerWithEffects(origin, setting, eventType, intensity, gridRef, teleportCmd, intervals, numberOfRockets, duration, radius);
-                });
-            }
-            else
-            {
-                // Start immediately without countdown
-                StartMeteorShowerWithEffects(origin, setting, eventType, intensity, gridRef, teleportCmd, intervals, numberOfRockets, duration, radius);
-            }
+            // Start meteor shower event
+            StartMeteorShowerWithEffects(origin, setting, eventType, intensity, gridRef, teleportCmd, intervals, numberOfRockets, duration, radius);
         }
 
         private void StartMeteorShowerWithEffects(Vector3 origin, ConfigData.Settings setting, string eventType, string intensity, string gridRef, string teleportCmd, float intervals, int numberOfRockets, float duration, float radius)
@@ -1761,14 +1731,14 @@ namespace Oxide.Plugins
                 case "onplayer_extreme":
                     if (args.Length == 2)
                     {
-                        if (StartOnPlayer(args[1], configData.z_IntensitySettings.Settings_Extreme, "Admin on Player"))
+                        if (StartOnPlayer(args[1], configData.IntensitySettings.Extreme, "Admin on Player"))
                             SendReply(player, msg("Extreme", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
                         else
                             SendReply(player, msg("noPlayer", player.UserIDString));
                     }
                     else
                     {
-                        StartRainOfFire(player.transform.position, configData.z_IntensitySettings.Settings_Extreme, "Admin on Position");
+                        StartRainOfFire(player.transform.position, configData.IntensitySettings.Extreme, "Admin on Position");
                         SendReply(player, msg("Extreme", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
                     break;
@@ -1776,14 +1746,14 @@ namespace Oxide.Plugins
                 case "onplayer_medium":
                     if (args.Length == 2)
                     {
-                        if (StartOnPlayer(args[1], configData.z_IntensitySettings.Settings_Medium, "Admin on Player"))
+                        if (StartOnPlayer(args[1], configData.IntensitySettings.Medium, "Admin on Player"))
                             SendReply(player, msg("Medium", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
                         else
                             SendReply(player, msg("noPlayer", player.UserIDString));
                     }
                     else
                     {
-                        StartRainOfFire(player.transform.position, configData.z_IntensitySettings.Settings_Medium, "Admin on Position");
+                        StartRainOfFire(player.transform.position, configData.IntensitySettings.Medium, "Admin on Position");
                         SendReply(player, msg("Medium", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
                     break;
@@ -1791,14 +1761,14 @@ namespace Oxide.Plugins
                 case "onplayer_mild":
                     if (args.Length == 2)
                     {
-                        if (StartOnPlayer(args[1], configData.z_IntensitySettings.Settings_Mild, "Admin on Player"))
+                        if (StartOnPlayer(args[1], configData.IntensitySettings.Mild, "Admin on Player"))
                             SendReply(player, msg("Mild", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
                         else
                             SendReply(player, msg("noPlayer", player.UserIDString));
                     }
                     else
                     {
-                        StartRainOfFire(player.transform.position, configData.z_IntensitySettings.Settings_Mild, "Admin on Position");
+                        StartRainOfFire(player.transform.position, configData.IntensitySettings.Mild, "Admin on Position");
                         SendReply(player, msg("Mild", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
                     break;
@@ -1991,7 +1961,7 @@ namespace Oxide.Plugins
             public DamageOptions DamageControl { get; set; }
             public ConfigOptions Options { get; set; }
             public LoggingOptions Logging { get; set; }
-            public IntensityOptions z_IntensitySettings { get; set; }
+            public IntensityOptions IntensitySettings { get; set; }
 
             public class DamageOptions
             {
@@ -2019,7 +1989,6 @@ namespace Oxide.Plugins
                 public bool InGamePlayerEventNotifications { get; set; }
                 public int MinimumPlayerCount { get; set; }
                 public PerformanceSettings PerformanceMonitoring { get; set; }
-                public WarningSettings WarningCountdown { get; set; }
                 public EffectsSettings VisualEffects { get; set; }
                 public MapMarkerSettings MapMarkers { get; set; }
             }
@@ -2079,12 +2048,6 @@ namespace Oxide.Plugins
                 public float MinimumFPS { get; set; }
             }
 
-            public class WarningSettings
-            {
-                public bool EnableWarning { get; set; }
-                public float CountdownSeconds { get; set; }
-            }
-
             public class EffectsSettings
             {
                 public bool EnableScreenShake { get; set; }
@@ -2115,9 +2078,12 @@ namespace Oxide.Plugins
 
             public class IntensityOptions
             {
-                public Settings Settings_Mild { get; set; }
-                public Settings Settings_Medium { get; set; }
-                public Settings Settings_Extreme { get; set; }
+                [JsonProperty(Order = 1)]
+                public Settings Mild { get; set; }
+                [JsonProperty(Order = 2)]
+                public Settings Medium { get; set; }
+                [JsonProperty(Order = 3)]
+                public Settings Extreme { get; set; }
             }
         }
 
@@ -2172,11 +2138,6 @@ namespace Oxide.Plugins
                         EnableFPSCheck = true,
                         MinimumFPS = 40f
                     },
-                    WarningCountdown = new ConfigData.WarningSettings
-                    {
-                        EnableWarning = true,
-                        CountdownSeconds = 30f
-                    },
                     VisualEffects = new ConfigData.EffectsSettings
                     {
                         EnableScreenShake = true,
@@ -2218,9 +2179,9 @@ namespace Oxide.Plugins
                         MaxImpactsPerMinute = 28
                     }
                 },
-                z_IntensitySettings = new ConfigData.IntensityOptions
+                IntensitySettings = new ConfigData.IntensityOptions
                 {
-                    Settings_Mild = new ConfigData.Settings
+                    Mild = new ConfigData.Settings
                     {
                         FireRocketChance = 30,
                         Radius = 500f,
@@ -2238,7 +2199,7 @@ namespace Oxide.Plugins
                             }
                         }
                     },
-                    Settings_Medium = new ConfigData.Settings
+                    Medium = new ConfigData.Settings
                     {
                         FireRocketChance = 20,
                         Radius = 300f,
@@ -2257,7 +2218,7 @@ namespace Oxide.Plugins
                             }
                         }
                     },
-                    Settings_Extreme = new ConfigData.Settings
+                    Extreme = new ConfigData.Settings
                     {
                         FireRocketChance = 10,
                         Radius = 100f,
@@ -2391,22 +2352,6 @@ namespace Oxide.Plugins
                     }
                 }
 
-                if (configData.Options.WarningCountdown == null)
-                {
-                    Puts("Adding missing Options.WarningCountdown section");
-                    configData.Options.WarningCountdown = defaultConfig.Options.WarningCountdown;
-                    configChanged = true;
-                }
-                else
-                {
-                    if (configData.Options.WarningCountdown.CountdownSeconds == 0)
-                    {
-                        Puts("Adding missing WarningCountdown.CountdownSeconds");
-                        configData.Options.WarningCountdown.CountdownSeconds = defaultConfig.Options.WarningCountdown.CountdownSeconds;
-                        configChanged = true;
-                    }
-                }
-
                 if (configData.Options.VisualEffects == null)
                 {
                     Puts("Adding missing Options.VisualEffects section");
@@ -2512,141 +2457,141 @@ namespace Oxide.Plugins
                 }
             }
 
-            // Validate z_IntensitySettings
-            if (configData.z_IntensitySettings == null)
+            // Validate IntensitySettings
+            if (configData.IntensitySettings == null)
             {
-                Puts("Adding missing z_IntensitySettings section");
-                configData.z_IntensitySettings = defaultConfig.z_IntensitySettings;
+                Puts("Adding missing IntensitySettings section");
+                configData.IntensitySettings = defaultConfig.IntensitySettings;
                 configChanged = true;
             }
             else
             {
-                if (configData.z_IntensitySettings.Settings_Mild == null)
+                if (configData.IntensitySettings.Mild == null)
                 {
-                    Puts("Adding missing z_IntensitySettings.Settings_Mild section");
-                    configData.z_IntensitySettings.Settings_Mild = defaultConfig.z_IntensitySettings.Settings_Mild;
+                    Puts("Adding missing IntensitySettings.Mild section");
+                    configData.IntensitySettings.Mild = defaultConfig.IntensitySettings.Mild;
                     configChanged = true;
                 }
                 else
                 {
-                    if (configData.z_IntensitySettings.Settings_Mild.FireRocketChance == 0)
+                    if (configData.IntensitySettings.Mild.FireRocketChance == 0)
                     {
-                        Puts("Adding missing Settings_Mild.FireRocketChance");
-                        configData.z_IntensitySettings.Settings_Mild.FireRocketChance = defaultConfig.z_IntensitySettings.Settings_Mild.FireRocketChance;
+                        Puts("Adding missing Mild.FireRocketChance");
+                        configData.IntensitySettings.Mild.FireRocketChance = defaultConfig.IntensitySettings.Mild.FireRocketChance;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Mild.Radius == 0)
+                    if (configData.IntensitySettings.Mild.Radius == 0)
                     {
-                        Puts("Adding missing Settings_Mild.Radius");
-                        configData.z_IntensitySettings.Settings_Mild.Radius = defaultConfig.z_IntensitySettings.Settings_Mild.Radius;
+                        Puts("Adding missing Mild.Radius");
+                        configData.IntensitySettings.Mild.Radius = defaultConfig.IntensitySettings.Mild.Radius;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Mild.RocketAmount == 0)
+                    if (configData.IntensitySettings.Mild.RocketAmount == 0)
                     {
-                        Puts("Adding missing Settings_Mild.RocketAmount");
-                        configData.z_IntensitySettings.Settings_Mild.RocketAmount = defaultConfig.z_IntensitySettings.Settings_Mild.RocketAmount;
+                        Puts("Adding missing Mild.RocketAmount");
+                        configData.IntensitySettings.Mild.RocketAmount = defaultConfig.IntensitySettings.Mild.RocketAmount;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Mild.Duration == 0)
+                    if (configData.IntensitySettings.Mild.Duration == 0)
                     {
-                        Puts("Adding missing Settings_Mild.Duration");
-                        configData.z_IntensitySettings.Settings_Mild.Duration = defaultConfig.z_IntensitySettings.Settings_Mild.Duration;
+                        Puts("Adding missing Mild.Duration");
+                        configData.IntensitySettings.Mild.Duration = defaultConfig.IntensitySettings.Mild.Duration;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Mild.ItemDropControl == null)
+                    if (configData.IntensitySettings.Mild.ItemDropControl == null)
                     {
-                        Puts("Adding missing Settings_Mild.ItemDropControl section");
-                        configData.z_IntensitySettings.Settings_Mild.ItemDropControl = defaultConfig.z_IntensitySettings.Settings_Mild.ItemDropControl;
+                        Puts("Adding missing Mild.ItemDropControl section");
+                        configData.IntensitySettings.Mild.ItemDropControl = defaultConfig.IntensitySettings.Mild.ItemDropControl;
                         configChanged = true;
                     }
                 }
 
-                if (configData.z_IntensitySettings.Settings_Medium == null)
+                if (configData.IntensitySettings.Medium == null)
                 {
-                    Puts("Adding missing z_IntensitySettings.Settings_Medium section");
-                    configData.z_IntensitySettings.Settings_Medium = defaultConfig.z_IntensitySettings.Settings_Medium;
+                    Puts("Adding missing IntensitySettings.Medium section");
+                    configData.IntensitySettings.Medium = defaultConfig.IntensitySettings.Medium;
                     configChanged = true;
                 }
                 else
                 {
-                    if (configData.z_IntensitySettings.Settings_Medium.FireRocketChance == 0)
+                    if (configData.IntensitySettings.Medium.FireRocketChance == 0)
                     {
-                        Puts("Adding missing Settings_Medium.FireRocketChance");
-                        configData.z_IntensitySettings.Settings_Medium.FireRocketChance = defaultConfig.z_IntensitySettings.Settings_Medium.FireRocketChance;
+                        Puts("Adding missing Medium.FireRocketChance");
+                        configData.IntensitySettings.Medium.FireRocketChance = defaultConfig.IntensitySettings.Medium.FireRocketChance;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Medium.Radius == 0)
+                    if (configData.IntensitySettings.Medium.Radius == 0)
                     {
-                        Puts("Adding missing Settings_Medium.Radius");
-                        configData.z_IntensitySettings.Settings_Medium.Radius = defaultConfig.z_IntensitySettings.Settings_Medium.Radius;
+                        Puts("Adding missing Medium.Radius");
+                        configData.IntensitySettings.Medium.Radius = defaultConfig.IntensitySettings.Medium.Radius;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Medium.RocketAmount == 0)
+                    if (configData.IntensitySettings.Medium.RocketAmount == 0)
                     {
-                        Puts("Adding missing Settings_Medium.RocketAmount");
-                        configData.z_IntensitySettings.Settings_Medium.RocketAmount = defaultConfig.z_IntensitySettings.Settings_Medium.RocketAmount;
+                        Puts("Adding missing Medium.RocketAmount");
+                        configData.IntensitySettings.Medium.RocketAmount = defaultConfig.IntensitySettings.Medium.RocketAmount;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Medium.Duration == 0)
+                    if (configData.IntensitySettings.Medium.Duration == 0)
                     {
-                        Puts("Adding missing Settings_Medium.Duration");
-                        configData.z_IntensitySettings.Settings_Medium.Duration = defaultConfig.z_IntensitySettings.Settings_Medium.Duration;
+                        Puts("Adding missing Medium.Duration");
+                        configData.IntensitySettings.Medium.Duration = defaultConfig.IntensitySettings.Medium.Duration;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Medium.ItemDropControl == null)
+                    if (configData.IntensitySettings.Medium.ItemDropControl == null)
                     {
-                        Puts("Adding missing Settings_Medium.ItemDropControl section");
-                        configData.z_IntensitySettings.Settings_Medium.ItemDropControl = defaultConfig.z_IntensitySettings.Settings_Medium.ItemDropControl;
+                        Puts("Adding missing Medium.ItemDropControl section");
+                        configData.IntensitySettings.Medium.ItemDropControl = defaultConfig.IntensitySettings.Medium.ItemDropControl;
                         configChanged = true;
                     }
                 }
 
-                if (configData.z_IntensitySettings.Settings_Extreme == null)
+                if (configData.IntensitySettings.Extreme == null)
                 {
-                    Puts("Adding missing z_IntensitySettings.Settings_Extreme section");
-                    configData.z_IntensitySettings.Settings_Extreme = defaultConfig.z_IntensitySettings.Settings_Extreme;
+                    Puts("Adding missing IntensitySettings.Extreme section");
+                    configData.IntensitySettings.Extreme = defaultConfig.IntensitySettings.Extreme;
                     configChanged = true;
                 }
                 else
                 {
-                    if (configData.z_IntensitySettings.Settings_Extreme.FireRocketChance == 0)
+                    if (configData.IntensitySettings.Extreme.FireRocketChance == 0)
                     {
-                        Puts("Adding missing Settings_Extreme.FireRocketChance");
-                        configData.z_IntensitySettings.Settings_Extreme.FireRocketChance = defaultConfig.z_IntensitySettings.Settings_Extreme.FireRocketChance;
+                        Puts("Adding missing Extreme.FireRocketChance");
+                        configData.IntensitySettings.Extreme.FireRocketChance = defaultConfig.IntensitySettings.Extreme.FireRocketChance;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Extreme.Radius == 0)
+                    if (configData.IntensitySettings.Extreme.Radius == 0)
                     {
-                        Puts("Adding missing Settings_Extreme.Radius");
-                        configData.z_IntensitySettings.Settings_Extreme.Radius = defaultConfig.z_IntensitySettings.Settings_Extreme.Radius;
+                        Puts("Adding missing Extreme.Radius");
+                        configData.IntensitySettings.Extreme.Radius = defaultConfig.IntensitySettings.Extreme.Radius;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Extreme.RocketAmount == 0)
+                    if (configData.IntensitySettings.Extreme.RocketAmount == 0)
                     {
-                        Puts("Adding missing Settings_Extreme.RocketAmount");
-                        configData.z_IntensitySettings.Settings_Extreme.RocketAmount = defaultConfig.z_IntensitySettings.Settings_Extreme.RocketAmount;
+                        Puts("Adding missing Extreme.RocketAmount");
+                        configData.IntensitySettings.Extreme.RocketAmount = defaultConfig.IntensitySettings.Extreme.RocketAmount;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Extreme.Duration == 0)
+                    if (configData.IntensitySettings.Extreme.Duration == 0)
                     {
-                        Puts("Adding missing Settings_Extreme.Duration");
-                        configData.z_IntensitySettings.Settings_Extreme.Duration = defaultConfig.z_IntensitySettings.Settings_Extreme.Duration;
+                        Puts("Adding missing Extreme.Duration");
+                        configData.IntensitySettings.Extreme.Duration = defaultConfig.IntensitySettings.Extreme.Duration;
                         configChanged = true;
                     }
-                    if (configData.z_IntensitySettings.Settings_Extreme.ItemDropControl == null)
+                    if (configData.IntensitySettings.Extreme.ItemDropControl == null)
                     {
-                        Puts("Adding missing Settings_Extreme.ItemDropControl section");
-                        configData.z_IntensitySettings.Settings_Extreme.ItemDropControl = defaultConfig.z_IntensitySettings.Settings_Extreme.ItemDropControl;
+                        Puts("Adding missing Extreme.ItemDropControl section");
+                        configData.IntensitySettings.Extreme.ItemDropControl = defaultConfig.IntensitySettings.Extreme.ItemDropControl;
                         configChanged = true;
                     }
                 }
             }
 
             // Rest of validation code remains the same...
-            if (configData.z_IntensitySettings?.Settings_Mild?.ItemDropControl?.ItemsToDrop != null)
+            if (configData.IntensitySettings?.Mild?.ItemDropControl?.ItemsToDrop != null)
             {
                 // Only update if the drops don't match our new structure
-                var currentMild = configData.z_IntensitySettings.Settings_Mild.ItemDropControl.ItemsToDrop;
+                var currentMild = configData.IntensitySettings.Mild.ItemDropControl.ItemsToDrop;
                 bool needsUpdate = currentMild.Length != 4 || 
                                  !System.Array.Exists(currentMild, x => x.Shortname == "scrap") ||
                                  !System.Array.Exists(currentMild, x => x.Shortname == "sulfur.ore");
@@ -2654,7 +2599,7 @@ namespace Oxide.Plugins
                 if (needsUpdate)
                 {
                     Puts("Updating Mild intensity drops to new values");
-                    configData.z_IntensitySettings.Settings_Mild.ItemDropControl.ItemsToDrop = new ItemDrop[]
+                    configData.IntensitySettings.Mild.ItemDropControl.ItemsToDrop = new ItemDrop[]
                     {
                         new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "stones" },
                         new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "metal.ore" },
@@ -2665,9 +2610,9 @@ namespace Oxide.Plugins
                 }
             }
 
-            if (configData.z_IntensitySettings?.Settings_Medium?.ItemDropControl?.ItemsToDrop != null)
+            if (configData.IntensitySettings?.Medium?.ItemDropControl?.ItemsToDrop != null)
             {
-                var currentMedium = configData.z_IntensitySettings.Settings_Medium.ItemDropControl.ItemsToDrop;
+                var currentMedium = configData.IntensitySettings.Medium.ItemDropControl.ItemsToDrop;
                 bool needsUpdate = currentMedium.Length != 5 || 
                                  !System.Array.Exists(currentMedium, x => x.Shortname == "scrap") ||
                                  !System.Array.Exists(currentMedium, x => x.Shortname == "sulfur.ore");
@@ -2675,7 +2620,7 @@ namespace Oxide.Plugins
                 if (needsUpdate)
                 {
                     Puts("Updating Medium intensity drops to new values");
-                    configData.z_IntensitySettings.Settings_Medium.ItemDropControl.ItemsToDrop = new ItemDrop[]
+                    configData.IntensitySettings.Medium.ItemDropControl.ItemsToDrop = new ItemDrop[]
                     {
                         new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "stones" },
                         new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "metal.fragments" },
@@ -2687,9 +2632,9 @@ namespace Oxide.Plugins
                 }
             }
 
-            if (configData.z_IntensitySettings?.Settings_Extreme?.ItemDropControl?.ItemsToDrop != null)
+            if (configData.IntensitySettings?.Extreme?.ItemDropControl?.ItemsToDrop != null)
             {
-                var currentExtreme = configData.z_IntensitySettings.Settings_Extreme.ItemDropControl.ItemsToDrop;
+                var currentExtreme = configData.IntensitySettings.Extreme.ItemDropControl.ItemsToDrop;
                 bool needsUpdate = currentExtreme.Length != 5 || 
                                  System.Array.Exists(currentExtreme, x => x.Shortname == "metal.refined") ||
                                  !System.Array.Exists(currentExtreme, x => x.Shortname == "scrap");
@@ -2697,7 +2642,7 @@ namespace Oxide.Plugins
                 if (needsUpdate)
                 {
                     Puts("Updating Extreme intensity drops to new values");
-                    configData.z_IntensitySettings.Settings_Extreme.ItemDropControl.ItemsToDrop = new ItemDrop[]
+                    configData.IntensitySettings.Extreme.ItemDropControl.ItemsToDrop = new ItemDrop[]
                     {
                         new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "stones" },
                         new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "metal.fragments" },
@@ -2753,11 +2698,6 @@ namespace Oxide.Plugins
                         EnableFPSCheck = true,
                         MinimumFPS = 40f
                     },
-                    WarningCountdown = new ConfigData.WarningSettings
-                    {
-                        EnableWarning = true,
-                        CountdownSeconds = 30f
-                    },
                     VisualEffects = new ConfigData.EffectsSettings
                     {
                         EnableScreenShake = true,
@@ -2799,9 +2739,9 @@ namespace Oxide.Plugins
                         MaxImpactsPerMinute = 28
                     }
                 },
-                z_IntensitySettings = new ConfigData.IntensityOptions
+                IntensitySettings = new ConfigData.IntensityOptions
                 {
-                    Settings_Mild = new ConfigData.Settings
+                    Mild = new ConfigData.Settings
                     {
                         FireRocketChance = 30,
                         Radius = 500f,
@@ -2819,7 +2759,7 @@ namespace Oxide.Plugins
                             }
                         }
                     },
-                    Settings_Medium = new ConfigData.Settings
+                    Medium = new ConfigData.Settings
                     {
                         FireRocketChance = 20,
                         Radius = 300f,
@@ -2838,7 +2778,7 @@ namespace Oxide.Plugins
                             }
                         }
                     },
-                    Settings_Extreme = new ConfigData.Settings
+                    Extreme = new ConfigData.Settings
                     {
                         FireRocketChance = 10,
                         Radius = 100f,
