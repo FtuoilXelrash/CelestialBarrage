@@ -223,9 +223,9 @@ Configure private Discord notifications (visible only to admins):
       "Impact Filtering": {
         "Log Player Impacts?": true,
         "Log Structure Impacts?": false,
-        "Filter Smoke Rockets?": true
-      },
-      "Minimum Damage Threshold": 1.0
+        "Filter Smoke Rockets?": true,
+        "Minimum Impact Damage Threshold": 50.0
+      }
     }
   }
 }
@@ -236,12 +236,12 @@ Configure private Discord notifications (visible only to admins):
 - **Include Event Messages?** (bool): When `true`, sends event start/end messages to admin channel
 - **Include Impact Messages?** (bool): When `true`, sends meteor impact details (players, structures) to admin channel
 - **Webhook URL** (string): Discord webhook URL for admin notifications
-- **Minimum Damage Threshold** (float): Impacts with damage below this value are not logged to Discord (prevents spam from low-damage hits)
 
 **Impact Filtering Settings:**
 - **Log Player Impacts?** (bool): When `true`, logs when meteors hit players to Discord
 - **Log Structure Impacts?** (bool): When `true`, logs when meteors hit structures/bases to Discord
 - **Filter Smoke Rockets?** (bool): When `true`, prevents spam from smoke rocket impacts (they don't cause real damage)
+- **Minimum Impact Damage Threshold** (float): Only logs impacts with damage of this amount or higher (default: 50.0). Prevents Discord spam from low-damage hits
 
 ### 🎯 Discord Rate Limiting
 
