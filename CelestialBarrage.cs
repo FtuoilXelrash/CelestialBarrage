@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.700")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.825")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -501,7 +501,7 @@ namespace Oxide.Plugins
             SendEnhancedDiscordMessage(true, eventType, intensity, gridRef, numberOfRockets, duration, radius, origin, teleportCmd);
 
             // Send public Discord message if enabled
-            if (configData.Logging.LogToPublicDiscord && IsValidWebhookUrl(configData.Logging.PublicWebhookURL))
+            if (configData.Logging.PublicChannel.Enabled && configData.Logging.PublicChannel.IncludeEventStartEnd && IsValidWebhookUrl(configData.Logging.PublicChannel.PublicWebhookURL))
             {
                 SendPublicDiscordEmbed($"Celestial barrage started at {gridRef}!", intensity, gridRef, true);
             }
@@ -549,7 +549,7 @@ namespace Oxide.Plugins
                 SendEnhancedDiscordMessage(false, eventType, intensity, gridRef, numberOfRockets, duration, radius, origin, teleportCmd);
                 
                 // Send public Discord end message if enabled
-                if (configData.Logging.LogToPublicDiscord && IsValidWebhookUrl(configData.Logging.PublicWebhookURL))
+                if (configData.Logging.PublicChannel.Enabled && configData.Logging.PublicChannel.IncludeEventStartEnd && IsValidWebhookUrl(configData.Logging.PublicChannel.PublicWebhookURL))
                 {
                     SendPublicDiscordEmbed($"Celestial barrage ended at {gridRef}", intensity, gridRef, false);
                 }
@@ -571,8 +571,8 @@ namespace Oxide.Plugins
 
         private void SendEnhancedDiscordMessage(bool isStart, string eventType, string intensity, string gridRef, int numberOfRockets, float duration, float radius, Vector3 origin, string teleportCmd)
         {
-            // Only send if admin Discord is enabled
-            if (!configData.Logging.LogToPrivateDiscord || !IsValidWebhookUrl(configData.Logging.PrivateAdminWebhookURL))
+            // Only send if admin Discord is enabled and event messages are included
+            if (!configData.Logging.AdminChannel.Enabled || !configData.Logging.AdminChannel.IncludeEventMessages || !IsValidWebhookUrl(configData.Logging.AdminChannel.PrivateAdminWebhookURL))
                 return;
 
             float currentFPS = 1f / UnityEngine.Time.unscaledDeltaTime;
@@ -662,7 +662,7 @@ namespace Oxide.Plugins
             string json = JsonConvert.SerializeObject(payload);
             var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
 
-            webrequest.Enqueue(configData.Logging.PrivateAdminWebhookURL, json, (code, response) =>
+            webrequest.Enqueue(configData.Logging.AdminChannel.PrivateAdminWebhookURL, json, (code, response) =>
             {
                 if (code != 200 && code != 204)
                 {
@@ -1013,7 +1013,7 @@ namespace Oxide.Plugins
             bool isSmokeRocket = damageSource.Contains("smoke");
 
             // Filter smoke rockets from structures/entities if configured (always 1.0 damage spam) but keep for players
-            if (isSmokeRocket && !isPlayer && configData.Logging.DiscordImpactSettings.FilterSmokeRockets)
+            if (isSmokeRocket && !isPlayer && configData.Logging.AdminChannel.ImpactFiltering.FilterSmokeRockets)
             {
                 if (configData?.Logging?.LogToConsole == true)
                 {
@@ -1338,9 +1338,9 @@ namespace Oxide.Plugins
             }
 
             // Send to Discord webhooks based on type and settings
-            if (logType == "admin" && configData.Logging.LogToPrivateDiscord && IsValidWebhookUrl(configData.Logging.PrivateAdminWebhookURL))
+            if (logType == "admin" && configData.Logging.AdminChannel.Enabled && IsValidWebhookUrl(configData.Logging.AdminChannel.PrivateAdminWebhookURL))
             {
-                QueueDiscordMessage(configData.Logging.PrivateAdminWebhookURL, message, true, "admin");
+                QueueDiscordMessage(configData.Logging.AdminChannel.PrivateAdminWebhookURL, message, true, "admin");
             }
         }
 
@@ -1418,7 +1418,7 @@ namespace Oxide.Plugins
             string json = JsonConvert.SerializeObject(payload);
             var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
 
-            webrequest.Enqueue(configData.Logging.PublicWebhookURL, json, (code, response) =>
+            webrequest.Enqueue(configData.Logging.PublicChannel.PublicWebhookURL, json, (code, response) =>
             {
                 if (code != 200 && code != 204)
                 {
@@ -1433,8 +1433,8 @@ namespace Oxide.Plugins
 
         private void SendSkippedEventDiscord(string reason, string eventType, string additionalInfo = "")
         {
-            // Only send if admin Discord is enabled
-            if (!configData.Logging.LogToPrivateDiscord || !IsValidWebhookUrl(configData.Logging.PrivateAdminWebhookURL))
+            // Only send if admin Discord is enabled and event messages are included
+            if (!configData.Logging.AdminChannel.Enabled || !configData.Logging.AdminChannel.IncludeEventMessages || !IsValidWebhookUrl(configData.Logging.AdminChannel.PrivateAdminWebhookURL))
                 return;
 
             // Create rich embed for skipped event
@@ -1474,7 +1474,7 @@ namespace Oxide.Plugins
             var json = JsonConvert.SerializeObject(payload);
             var headers = new Dictionary<string, string> { ["Content-Type"] = "application/json" };
 
-            webrequest.Enqueue(configData.Logging.PrivateAdminWebhookURL, json, (code, response) =>
+            webrequest.Enqueue(configData.Logging.AdminChannel.PrivateAdminWebhookURL, json, (code, response) =>
             {
                 if (code != 200 && code != 204)
                 {
@@ -1489,14 +1489,14 @@ namespace Oxide.Plugins
 
         private void SendMeteorImpactDiscord(string entityType, string ownerInfo, string damageSource, string damageInfo, string teleportCmd, bool isPlayer, bool isPlayerStructure)
         {
-            // Only send if admin Discord is enabled and impact logging is configured
-            if (!configData.Logging.LogToPrivateDiscord || !IsValidWebhookUrl(configData.Logging.PrivateAdminWebhookURL))
+            // Only send if admin Discord is enabled and impact messages are included
+            if (!configData.Logging.AdminChannel.Enabled || !configData.Logging.AdminChannel.IncludeImpactMessages || !IsValidWebhookUrl(configData.Logging.AdminChannel.PrivateAdminWebhookURL))
                 return;
 
             // Check if this type of impact should be logged
-            if (isPlayer && !configData.Logging.DiscordImpactSettings.LogPlayerImpacts)
+            if (isPlayer && !configData.Logging.AdminChannel.ImpactFiltering.LogPlayerImpacts)
                 return;
-            if (isPlayerStructure && !configData.Logging.DiscordImpactSettings.LogStructureImpacts)
+            if (isPlayerStructure && !configData.Logging.AdminChannel.ImpactFiltering.LogStructureImpacts)
                 return;
 
             // Determine embed properties based on impact type
@@ -1551,7 +1551,7 @@ namespace Oxide.Plugins
             var headers = new Dictionary<string, string> { ["Content-Type"] = "application/json" };
 
             // Send directly using webrequest to avoid conflicts with plain text queue system
-            webrequest.Enqueue(configData.Logging.PrivateAdminWebhookURL, json, (code, response) =>
+            webrequest.Enqueue(configData.Logging.AdminChannel.PrivateAdminWebhookURL, json, (code, response) =>
             {
                 if (code != 200 && code != 204)
                 {
@@ -2026,21 +2026,43 @@ namespace Oxide.Plugins
 
             public class LoggingOptions
             {
-                public string PublicWebhookURL { get; set; }
-                public string PrivateAdminWebhookURL { get; set; }
                 public bool LogToConsole { get; set; }
-                public bool LogToPublicDiscord { get; set; }
-                public bool LogToPrivateDiscord { get; set; }
                 public bool ShowInGameMessages { get; set; }
                 public float MinimumDamageThreshold { get; set; }
-                public DiscordImpactOptions DiscordImpactSettings { get; set; }
+                public PublicChannelOptions PublicChannel { get; set; }
+                public AdminChannelOptions AdminChannel { get; set; }
                 public DiscordRateLimitOptions DiscordRateLimit { get; set; }
             }
 
-            public class DiscordImpactOptions
+            public class PublicChannelOptions
             {
+                public bool Enabled { get; set; }
+                public bool IncludeEventStartEnd { get; set; }
+                [JsonProperty(PropertyName = "Webhook URL")]
+                public string PublicWebhookURL { get; set; }
+            }
+
+            public class AdminChannelOptions
+            {
+                [JsonProperty(PropertyName = "Enabled?")]
+                public bool Enabled { get; set; }
+                [JsonProperty(PropertyName = "Include Event Messages?")]
+                public bool IncludeEventMessages { get; set; }
+                [JsonProperty(PropertyName = "Include Impact Messages?")]
+                public bool IncludeImpactMessages { get; set; }
+                [JsonProperty(PropertyName = "Webhook URL")]
+                public string PrivateAdminWebhookURL { get; set; }
+                [JsonProperty(PropertyName = "Impact Filtering")]
+                public ImpactFilteringOptions ImpactFiltering { get; set; }
+            }
+
+            public class ImpactFilteringOptions
+            {
+                [JsonProperty(PropertyName = "Log Player Impacts?")]
                 public bool LogPlayerImpacts { get; set; }
+                [JsonProperty(PropertyName = "Log Structure Impacts?")]
                 public bool LogStructureImpacts { get; set; }
+                [JsonProperty(PropertyName = "Filter Smoke Rockets?")]
                 public bool FilterSmokeRockets { get; set; }
             }
 
@@ -2099,109 +2121,11 @@ namespace Oxide.Plugins
             }
         }
 
-        private bool NeedsConfigUpdate()
-        {
-            // Check if the config file contains the new DiscordImpactSettings property
-            try
-            {
-                string configPath = $"{Interface.Oxide.ConfigDirectory}/{Name}.json";
-                if (System.IO.File.Exists(configPath))
-                {
-                    string configText = System.IO.File.ReadAllText(configPath);
-                    return !configText.Contains("DiscordImpactSettings");
-                }
-                return true;
-            }
-            catch
-            {
-                return true;
-            }
-        }
-
         private void LoadVariables()
         {
-            // Check if we need to regenerate config for new properties
-            if (NeedsConfigRegeneration())
-            {
-                Puts("Config missing new properties - backing up old config and regenerating");
-                BackupAndRegenerateConfig();
-            }
-            
             LoadConfigVariables();
             ValidateConfig();
             SaveConfig();
-        }
-
-        private bool NeedsConfigRegeneration()
-        {
-            try
-            {
-                string configPath = $"{Interface.Oxide.ConfigDirectory}/{Name}.json";
-                if (System.IO.File.Exists(configPath))
-                {
-                    string configText = System.IO.File.ReadAllText(configPath);
-                    return !configText.Contains("DiscordImpactSettings");
-                }
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private void BackupAndRegenerateConfig()
-        {
-            try
-            {
-                // Load existing config to preserve settings
-                var oldConfig = Config.ReadObject<ConfigData>();
-                
-                // Create backup
-                string configPath = $"{Interface.Oxide.ConfigDirectory}/{Name}.json";
-                string backupPath = $"{Interface.Oxide.ConfigDirectory}/{Name}_backup_{System.DateTime.Now:yyyyMMdd_HHmmss}.json";
-                System.IO.File.Copy(configPath, backupPath);
-                Puts($"Backed up old config to: {backupPath}");
-                
-                // Generate new config with preserved values
-                LoadDefaultConfig();
-                
-                // Restore old values if they existed
-                if (oldConfig != null)
-                {
-                    configData = Config.ReadObject<ConfigData>();
-                    
-                    // Preserve all old settings
-                    if (oldConfig.BarrageSettings != null)
-                        configData.BarrageSettings = oldConfig.BarrageSettings;
-                    if (oldConfig.DamageControl != null)
-                        configData.DamageControl = oldConfig.DamageControl;
-                    if (oldConfig.Options != null)
-                        configData.Options = oldConfig.Options;
-                    if (oldConfig.z_IntensitySettings != null)
-                        configData.z_IntensitySettings = oldConfig.z_IntensitySettings;
-                        
-                    // Preserve old logging settings but add new property
-                    if (oldConfig.Logging != null)
-                    {
-                        configData.Logging.LogToConsole = oldConfig.Logging.LogToConsole;
-                        configData.Logging.LogToPublicDiscord = oldConfig.Logging.LogToPublicDiscord;
-                        configData.Logging.LogToPrivateDiscord = oldConfig.Logging.LogToPrivateDiscord;
-                        if (oldConfig.Logging.ShowInGameMessages != default(bool))
-                            configData.Logging.ShowInGameMessages = oldConfig.Logging.ShowInGameMessages;
-                        if (oldConfig.Logging.MinimumDamageThreshold != default(float))
-                            configData.Logging.MinimumDamageThreshold = oldConfig.Logging.MinimumDamageThreshold;
-                        // DiscordImpactSettings gets the new default value from LoadDefaultConfig
-                    }
-                    
-                    SaveConfig(configData);
-                    Puts("Config regenerated with new DiscordImpactSettings property while preserving all existing settings");
-                }
-            }
-            catch (System.Exception ex)
-            {
-                PrintError($"Error during config regeneration: {ex.Message}");
-            }
         }
 
         private void ValidateConfig()
@@ -2265,18 +2189,27 @@ namespace Oxide.Plugins
                 },
                 Logging = new ConfigData.LoggingOptions
                 {
-                    PublicWebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
-                    PrivateAdminWebhookURL = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
                     LogToConsole = true,
-                    LogToPublicDiscord = false,
-                    LogToPrivateDiscord = true,
                     ShowInGameMessages = true,
                     MinimumDamageThreshold = 1.0f,
-                    DiscordImpactSettings = new ConfigData.DiscordImpactOptions
+                    PublicChannel = new ConfigData.PublicChannelOptions
                     {
-                        LogPlayerImpacts = true,
-                        LogStructureImpacts = false,
-                        FilterSmokeRockets = true
+                        Enabled = false,
+                        IncludeEventStartEnd = true,
+                        PublicWebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
+                    },
+                    AdminChannel = new ConfigData.AdminChannelOptions
+                    {
+                        Enabled = true,
+                        IncludeEventMessages = true,
+                        IncludeImpactMessages = true,
+                        PrivateAdminWebhookURL = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
+                        ImpactFiltering = new ConfigData.ImpactFilteringOptions
+                        {
+                            LogPlayerImpacts = true,
+                            LogStructureImpacts = false,
+                            FilterSmokeRockets = true
+                        }
                     },
                     DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
                     {
@@ -2498,16 +2431,16 @@ namespace Oxide.Plugins
             }
             else
             {
-                if (string.IsNullOrEmpty(configData.Logging.PublicWebhookURL))
+                if (string.IsNullOrEmpty(configData.Logging.PublicChannel?.PublicWebhookURL))
                 {
-                    Puts("Adding missing Logging.PublicWebhookURL");
-                    configData.Logging.PublicWebhookURL = defaultConfig.Logging.PublicWebhookURL;
+                    Puts("Adding missing Logging.PublicChannel.PublicWebhookURL");
+                    configData.Logging.PublicChannel.PublicWebhookURL = defaultConfig.Logging.PublicChannel.PublicWebhookURL;
                     configChanged = true;
                 }
-                if (string.IsNullOrEmpty(configData.Logging.PrivateAdminWebhookURL))
+                if (string.IsNullOrEmpty(configData.Logging.AdminChannel?.PrivateAdminWebhookURL))
                 {
-                    Puts("Adding missing Logging.PrivateAdminWebhookURL");
-                    configData.Logging.PrivateAdminWebhookURL = defaultConfig.Logging.PrivateAdminWebhookURL;
+                    Puts("Adding missing Logging.AdminChannel.PrivateAdminWebhookURL");
+                    configData.Logging.AdminChannel.PrivateAdminWebhookURL = defaultConfig.Logging.AdminChannel.PrivateAdminWebhookURL;
                     configChanged = true;
                 }
 
@@ -2552,20 +2485,28 @@ namespace Oxide.Plugins
                     configChanged = true;
                 }
 
-                // Validate DiscordImpactSettings
-                if (configData.Logging.DiscordImpactSettings == null)
+                // Validate PublicChannel settings
+                if (configData.Logging.PublicChannel == null)
                 {
-                    Puts("Adding missing Logging.DiscordImpactSettings section");
-                    configData.Logging.DiscordImpactSettings = defaultConfig.Logging.DiscordImpactSettings;
+                    Puts("Adding missing Logging.PublicChannel section");
+                    configData.Logging.PublicChannel = defaultConfig.Logging.PublicChannel;
+                    configChanged = true;
+                }
+
+                // Validate AdminChannel settings
+                if (configData.Logging.AdminChannel == null)
+                {
+                    Puts("Adding missing Logging.AdminChannel section");
+                    configData.Logging.AdminChannel = defaultConfig.Logging.AdminChannel;
                     configChanged = true;
                 }
                 else
                 {
-                    // Check for missing FilterSmokeRockets property (new in v0.0.645)
-                    if (configData.Logging.DiscordImpactSettings.FilterSmokeRockets == default(bool))
+                    // Validate ImpactFiltering within AdminChannel
+                    if (configData.Logging.AdminChannel.ImpactFiltering == null)
                     {
-                        Puts("Adding missing DiscordImpactSettings.FilterSmokeRockets (default: true)");
-                        configData.Logging.DiscordImpactSettings.FilterSmokeRockets = defaultConfig.Logging.DiscordImpactSettings.FilterSmokeRockets;
+                        Puts("Adding missing Logging.AdminChannel.ImpactFiltering section");
+                        configData.Logging.AdminChannel.ImpactFiltering = defaultConfig.Logging.AdminChannel.ImpactFiltering;
                         configChanged = true;
                     }
                 }
@@ -2701,36 +2642,6 @@ namespace Oxide.Plugins
                 }
             }
 
-            // Force config regeneration to add new DiscordImpactSettings property
-            if (NeedsConfigUpdate())
-            {
-                Puts("Config needs update for new DiscordImpactSettings property - regenerating config");
-                var oldLogging = configData.Logging;
-                configData.Logging = new ConfigData.LoggingOptions
-                {
-                    PublicWebhookURL = oldLogging?.PublicWebhookURL ?? "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
-                    PrivateAdminWebhookURL = oldLogging?.PrivateAdminWebhookURL ?? "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
-                    LogToConsole = oldLogging?.LogToConsole ?? true,
-                    LogToPublicDiscord = oldLogging?.LogToPublicDiscord ?? false,
-                    LogToPrivateDiscord = oldLogging?.LogToPrivateDiscord ?? true,
-                    ShowInGameMessages = oldLogging?.ShowInGameMessages ?? true,
-                    MinimumDamageThreshold = oldLogging?.MinimumDamageThreshold ?? 0.5f,
-                    DiscordImpactSettings = new ConfigData.DiscordImpactOptions
-                    {
-                        LogPlayerImpacts = true,
-                        LogStructureImpacts = false,
-                        FilterSmokeRockets = true
-                    },
-                    DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
-                    {
-                        EnableRateLimit = true,
-                        ImpactMessageCooldown = 1.0f,
-                        MaxImpactsPerMinute = 28
-                    }
-                };
-                configChanged = true;
-            }
-
             // Rest of validation code remains the same...
             if (configData.z_IntensitySettings?.Settings_Mild?.ItemDropControl?.ItemsToDrop != null)
             {
@@ -2859,18 +2770,27 @@ namespace Oxide.Plugins
                 },
                 Logging = new ConfigData.LoggingOptions
                 {
-                    PublicWebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
-                    PrivateAdminWebhookURL = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
                     LogToConsole = true,
-                    LogToPublicDiscord = false,
-                    LogToPrivateDiscord = true,
                     ShowInGameMessages = true,
                     MinimumDamageThreshold = 1.0f,
-                    DiscordImpactSettings = new ConfigData.DiscordImpactOptions
+                    PublicChannel = new ConfigData.PublicChannelOptions
                     {
-                        LogPlayerImpacts = true,
-                        LogStructureImpacts = false,
-                        FilterSmokeRockets = true
+                        Enabled = false,
+                        IncludeEventStartEnd = true,
+                        PublicWebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
+                    },
+                    AdminChannel = new ConfigData.AdminChannelOptions
+                    {
+                        Enabled = true,
+                        IncludeEventMessages = true,
+                        IncludeImpactMessages = true,
+                        PrivateAdminWebhookURL = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
+                        ImpactFiltering = new ConfigData.ImpactFilteringOptions
+                        {
+                            LogPlayerImpacts = true,
+                            LogStructureImpacts = false,
+                            FilterSmokeRockets = true
+                        }
                     },
                     DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
                     {

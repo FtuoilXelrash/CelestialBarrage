@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.700
+Version: 0.0.825
 License: MIT
 Downloads: Available on GitHub
 
@@ -72,6 +72,34 @@ Global Options:
     "NotifyEvent": true
   }
 }
+
+Warning Countdown:
+
+The WarningCountdown feature adds a pre-event delay before meteor showers begin, giving
+your server time to prepare and perform a final performance check:
+
+{
+  "Options": {
+    "WarningCountdown": {
+      "EnableWarning": true,
+      "CountdownSeconds": 10
+    }
+  }
+}
+
+Settings:
+- EnableWarning: Set to true to activate the countdown timer before events start
+- CountdownSeconds: Number of seconds to wait before the actual meteor event begins (default: 10)
+
+How It Works:
+1. When a meteor event is triggered, if WarningCountdown is enabled, a countdown timer starts
+2. During the countdown period, the server rechecks FPS (if PerformanceMonitoring.EnableFPSCheck is enabled)
+3. If FPS remains above the minimum threshold → meteor event begins normally
+4. If FPS drops below the minimum → event is cancelled and a Discord notification is sent (if configured)
+
+Performance Benefit:
+This feature provides an additional safety layer to prevent resource-intensive meteor events
+from launching during periods of server lag, protecting your players from unexpected performance issues.
 
 Intensity Settings:
 
