@@ -157,21 +157,6 @@ Control in-game map markers for events:
 **Settings:**
 - **EnableMapMarkers** (bool): When `true`, map markers appear at meteor event locations to help players locate the action
 
-### 💥 Damage Control
-
-Control rocket damage impact on the server:
-
-```json
-{
-  "DamageControl": {
-    "DamageMultiplier": 0.2
-  }
-}
-```
-
-**Settings:**
-- **DamageMultiplier** (float): Multiplier for rocket damage (default: 0.2 = 20% damage). Use 0.0 for no damage, 1.0 for full damage, 2.0+ for increased damage
-
 ### 🔊 Logging Options
 
 Control console logging:
@@ -285,7 +270,22 @@ Control the `/cb barrage` command behavior:
 
 ### 🌊 Intensity Settings
 
-Each intensity level is fully customizable. Below are the default configurations:
+Each intensity level is fully customizable. The DamageMultiplier setting applies globally to all intensity levels.
+
+**Global Setting:**
+```json
+{
+  "IntensitySettings": {
+    "DamageMultiplier": 0.2,
+    "Mild": { ... },
+    "Medium": { ... },
+    "Extreme": { ... }
+  }
+}
+```
+- **DamageMultiplier** (float): Global multiplier for all rocket damage (default: 0.2 = 20% damage). Applies to all intensity levels. Use 0.0 for no damage, 1.0 for full damage, 2.0+ for increased damage
+
+Below are the default configurations for each intensity level:
 
 #### Mild Settings (Beginner Friendly)
 ```json
@@ -416,7 +416,7 @@ Each intensity level is fully customizable. Below are the default configurations
 **High Population (100+ players):**
 ```json
 {
-  "DamageControl": { "DamageMultiplier": 0.1 },
+  "IntensitySettings": { "DamageMultiplier": 0.1 },
   "BarrageSettings": { "RocketDelay": 0.5 }
 }
 ```
@@ -424,7 +424,7 @@ Each intensity level is fully customizable. Below are the default configurations
 **Low Population (< 50 players):**
 ```json
 {
-  "DamageControl": { "DamageMultiplier": 0.3 },
+  "IntensitySettings": { "DamageMultiplier": 0.3 },
   "BarrageSettings": { "RocketDelay": 0.25 }
 }
 ```

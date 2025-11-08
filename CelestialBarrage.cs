@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.847")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.848")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -827,7 +827,7 @@ namespace Oxide.Plugins
             serverProjectile.speed = 25;
             timedExplosive.timerAmountMin = 300;
             timedExplosive.timerAmountMax = 300;
-            ScaleAllDamage(timedExplosive.damageTypes, configData.DamageControl.DamageMultiplier);
+            ScaleAllDamage(timedExplosive.damageTypes, configData.IntensitySettings.DamageMultiplier);
 
             // Add visual effects if enabled (simplified approach)
             if (configData.Options.VisualEffects.EnableParticleTrails)
@@ -1958,15 +1958,9 @@ namespace Oxide.Plugins
         class ConfigData
         {
             public BarrageOptions BarrageSettings { get; set; }
-            public DamageOptions DamageControl { get; set; }
             public ConfigOptions Options { get; set; }
             public LoggingOptions Logging { get; set; }
             public IntensityOptions IntensitySettings { get; set; }
-
-            public class DamageOptions
-            {
-                public float DamageMultiplier { get; set; }
-            }
 
             public class BarrageOptions
             {
@@ -2078,6 +2072,8 @@ namespace Oxide.Plugins
 
             public class IntensityOptions
             {
+                [JsonProperty(Order = 0)]
+                public float DamageMultiplier { get; set; }
                 [JsonProperty(Order = 1)]
                 public Settings Mild { get; set; }
                 [JsonProperty(Order = 2)]
@@ -2116,10 +2112,6 @@ namespace Oxide.Plugins
                     RocketDelay = 0.33f,
                     RocketSpread = 16f
                 },
-                DamageControl = new ConfigData.DamageOptions
-                {
-                    DamageMultiplier = 0.2f,
-                },                
                 Options = new ConfigData.ConfigOptions
                 {
                     EnableAutomaticEvents = true,
@@ -2180,6 +2172,7 @@ namespace Oxide.Plugins
                 },
                 IntensitySettings = new ConfigData.IntensityOptions
                 {
+                    DamageMultiplier = 0.2f,
                     Mild = new ConfigData.Settings
                     {
                         FireRocketChance = 30,
@@ -2268,21 +2261,12 @@ namespace Oxide.Plugins
                 }
             }
 
-            // Validate DamageControl
-            if (configData.DamageControl == null)
+            // Validate IntensitySettings.DamageMultiplier
+            if (configData.IntensitySettings.DamageMultiplier == 0)
             {
-                Puts("Adding missing DamageControl section");
-                configData.DamageControl = defaultConfig.DamageControl;
+                Puts("Adding missing IntensitySettings.DamageMultiplier");
+                configData.IntensitySettings.DamageMultiplier = defaultConfig.IntensitySettings.DamageMultiplier;
                 configChanged = true;
-            }
-            else
-            {
-                if (configData.DamageControl.DamageMultiplier == 0)
-                {
-                    Puts("Adding missing DamageControl.DamageMultiplier");
-                    configData.DamageControl.DamageMultiplier = defaultConfig.DamageControl.DamageMultiplier;
-                    configChanged = true;
-                }
             }
 
             // Validate Options
@@ -2675,10 +2659,6 @@ namespace Oxide.Plugins
                     RocketDelay = 0.33f,
                     RocketSpread = 16f
                 },
-                DamageControl = new ConfigData.DamageOptions
-                {
-                    DamageMultiplier = 0.2f,
-                },                
                 Options = new ConfigData.ConfigOptions
                 {
                     EnableAutomaticEvents = true,
@@ -2739,6 +2719,7 @@ namespace Oxide.Plugins
                 },
                 IntensitySettings = new ConfigData.IntensityOptions
                 {
+                    DamageMultiplier = 0.2f,
                     Mild = new ConfigData.Settings
                     {
                         FireRocketChance = 30,

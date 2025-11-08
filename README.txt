@@ -137,19 +137,6 @@ Control in-game map markers for events:
 Settings:
 - EnableMapMarkers (bool): When true, map markers appear at meteor event locations
 
-DAMAGE CONTROL:
-
-Control rocket damage impact on the server:
-
-{
-  "DamageControl": {
-    "DamageMultiplier": 0.2
-  }
-}
-
-Settings:
-- DamageMultiplier (float): Multiplier for rocket damage (default: 0.2 = 20% damage)
-
 LOGGING OPTIONS:
 
 Control console logging:
@@ -253,7 +240,20 @@ Settings:
 
 INTENSITY SETTINGS:
 
-Each intensity level is fully customizable. Below are the default configurations:
+Each intensity level is fully customizable. The DamageMultiplier setting applies globally to all intensity levels.
+
+Global Setting:
+{
+  "IntensitySettings": {
+    "DamageMultiplier": 0.2,
+    "Mild": { ... },
+    "Medium": { ... },
+    "Extreme": { ... }
+  }
+}
+- DamageMultiplier (float): Global multiplier for all rocket damage (default: 0.2 = 20% damage). Applies to all intensity levels.
+
+Below are the default configurations for each intensity level:
 
 Mild Settings (Beginner Friendly):
 {
@@ -374,13 +374,13 @@ Server Recommendations:
 
 High Population (100+ players):
 {
-  "DamageControl": { "DamageMultiplier": 0.1 },
+  "IntensitySettings": { "DamageMultiplier": 0.1 },
   "BarrageSettings": { "RocketDelay": 0.5 }
 }
 
 Low Population (< 50 players):
 {
-  "DamageControl": { "DamageMultiplier": 0.3 },
+  "IntensitySettings": { "DamageMultiplier": 0.3 },
   "BarrageSettings": { "RocketDelay": 0.25 }
 }
 
