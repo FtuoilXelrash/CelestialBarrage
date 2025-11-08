@@ -174,20 +174,18 @@ Control rocket damage impact on the server:
 
 ### 🔊 Logging Options
 
-Control console and in-game logging:
+Control console logging:
 
 ```json
 {
   "Logging": {
-    "LogToConsole": true,
-    "MinimumDamageThreshold": 1.0
+    "LogToConsole": true
   }
 }
 ```
 
 **Settings:**
 - **LogToConsole** (bool): When `true`, plugin logs detailed information to server console for debugging
-- **MinimumDamageThreshold** (float): Impacts with damage below this value are not logged to Discord (prevents spam from low-damage hits)
 
 ### 🌐 Public Discord Channel
 
@@ -226,7 +224,8 @@ Configure private Discord notifications (visible only to admins):
         "Log Player Impacts?": true,
         "Log Structure Impacts?": false,
         "Filter Smoke Rockets?": true
-      }
+      },
+      "Minimum Damage Threshold": 1.0
     }
   }
 }
@@ -237,6 +236,7 @@ Configure private Discord notifications (visible only to admins):
 - **Include Event Messages?** (bool): When `true`, sends event start/end messages to admin channel
 - **Include Impact Messages?** (bool): When `true`, sends meteor impact details (players, structures) to admin channel
 - **Webhook URL** (string): Discord webhook URL for admin notifications
+- **Minimum Damage Threshold** (float): Impacts with damage below this value are not logged to Discord (prevents spam from low-damage hits)
 
 **Impact Filtering Settings:**
 - **Log Player Impacts?** (bool): When `true`, logs when meteors hit players to Discord

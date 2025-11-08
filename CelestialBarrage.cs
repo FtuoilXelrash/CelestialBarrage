@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.840")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.845")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -993,14 +993,14 @@ namespace Oxide.Plugins
                 return;
             }
 
-            if (totalDamage < configData.Logging.MinimumDamageThreshold && !isPlayer && !isGrenadeImpact)
+            if (totalDamage < configData.Logging.AdminChannel.MinimumDamageThreshold && !isPlayer && !isGrenadeImpact)
             {
                 // Damage too low and not a player/grenade impact - don't log this impact
                 if (configData?.Logging?.LogToConsole == true)
                 {
                     string impactType = isPlayer ? "Player" : (isPlayerStructure ? "Structure" : "Entity");
                     string specialType = isCatapultImpact ? " (Catapult)" : isGrenadeImpact ? " (Grenade)" : isSmokeRocket ? " (Smoke)" : "";
-                    Puts($"[DEBUG] Impact filtered due to low damage: {totalDamage:F1} < {configData.Logging.MinimumDamageThreshold:F1} - {impactType}{specialType}");
+                    Puts($"[DEBUG] Impact filtered due to low damage: {totalDamage:F1} < {configData.Logging.AdminChannel.MinimumDamageThreshold:F1} - {impactType}{specialType}");
                 }
                 return;
             }
@@ -1996,7 +1996,6 @@ namespace Oxide.Plugins
             public class LoggingOptions
             {
                 public bool LogToConsole { get; set; }
-                public float MinimumDamageThreshold { get; set; }
                 public PublicChannelOptions PublicChannel { get; set; }
                 public AdminChannelOptions AdminChannel { get; set; }
                 public DiscordRateLimitOptions DiscordRateLimit { get; set; }
@@ -2022,6 +2021,8 @@ namespace Oxide.Plugins
                 public string PrivateAdminWebhookURL { get; set; }
                 [JsonProperty(PropertyName = "Impact Filtering")]
                 public ImpactFilteringOptions ImpactFiltering { get; set; }
+                [JsonProperty(PropertyName = "Minimum Damage Threshold")]
+                public float MinimumDamageThreshold { get; set; }
             }
 
             public class ImpactFilteringOptions
@@ -2150,7 +2151,6 @@ namespace Oxide.Plugins
                 Logging = new ConfigData.LoggingOptions
                 {
                     LogToConsole = true,
-                    MinimumDamageThreshold = 1.0f,
                     PublicChannel = new ConfigData.PublicChannelOptions
                     {
                         Enabled = false,
@@ -2168,7 +2168,8 @@ namespace Oxide.Plugins
                             LogPlayerImpacts = true,
                             LogStructureImpacts = false,
                             FilterSmokeRockets = true
-                        }
+                        },
+                        MinimumDamageThreshold = 1.0f
                     },
                     DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
                     {
@@ -2409,22 +2410,22 @@ namespace Oxide.Plugins
                     }
                 }
 
-                if (configData.Logging.MinimumDamageThreshold == 0)
+                if (configData.Logging.AdminChannel.MinimumDamageThreshold == 0)
                 {
-                    Puts("Adding missing Logging.MinimumDamageThreshold");
-                    configData.Logging.MinimumDamageThreshold = defaultConfig.Logging.MinimumDamageThreshold;
+                    Puts("Adding missing AdminChannel.MinimumDamageThreshold");
+                    configData.Logging.AdminChannel.MinimumDamageThreshold = defaultConfig.Logging.AdminChannel.MinimumDamageThreshold;
                     configChanged = true;
                 }
-                
+
                 // Validate MinimumDamageThreshold range and handle invalid values
-                if (configData.Logging.MinimumDamageThreshold < 0f ||
-                    configData.Logging.MinimumDamageThreshold > 1000f ||
-                    float.IsNaN(configData.Logging.MinimumDamageThreshold) ||
-                    float.IsInfinity(configData.Logging.MinimumDamageThreshold))
+                if (configData.Logging.AdminChannel.MinimumDamageThreshold < 0f ||
+                    configData.Logging.AdminChannel.MinimumDamageThreshold > 1000f ||
+                    float.IsNaN(configData.Logging.AdminChannel.MinimumDamageThreshold) ||
+                    float.IsInfinity(configData.Logging.AdminChannel.MinimumDamageThreshold))
                 {
-                    float oldValue = configData.Logging.MinimumDamageThreshold;
-                    configData.Logging.MinimumDamageThreshold = defaultConfig.Logging.MinimumDamageThreshold;
-                    Puts($"Invalid MinimumDamageThreshold value ({oldValue}), resetting to default ({configData.Logging.MinimumDamageThreshold})");
+                    float oldValue = configData.Logging.AdminChannel.MinimumDamageThreshold;
+                    configData.Logging.AdminChannel.MinimumDamageThreshold = defaultConfig.Logging.AdminChannel.MinimumDamageThreshold;
+                    Puts($"Invalid MinimumDamageThreshold value ({oldValue}), resetting to default ({configData.Logging.AdminChannel.MinimumDamageThreshold})");
                     configChanged = true;
                 }
 
@@ -2709,7 +2710,6 @@ namespace Oxide.Plugins
                 Logging = new ConfigData.LoggingOptions
                 {
                     LogToConsole = true,
-                    MinimumDamageThreshold = 1.0f,
                     PublicChannel = new ConfigData.PublicChannelOptions
                     {
                         Enabled = false,
@@ -2727,7 +2727,8 @@ namespace Oxide.Plugins
                             LogPlayerImpacts = true,
                             LogStructureImpacts = false,
                             FilterSmokeRockets = true
-                        }
+                        },
+                        MinimumDamageThreshold = 1.0f
                     },
                     DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
                     {
