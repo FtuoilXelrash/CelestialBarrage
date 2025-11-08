@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.825
+Version: 0.0.850
 License: MIT
 Downloads: Available on GitHub
 
@@ -56,24 +56,39 @@ cb.onposition <x> <z>        Start event at coordinates
 
 CONFIGURATION
 
-The plugin creates oxide/config/CelestialBarrage.json with these key settings:
+The plugin creates oxide/config/CelestialBarrage.json with comprehensive configuration options.
+Below is a complete reference of every available setting:
 
-Global Options:
+GLOBAL EVENT OPTIONS:
+
+Core Event Settings:
 {
   "Options": {
     "EnableAutomaticEvents": true,
+    "MinimumPlayerCount": 1,
+    "GlobalDropMultiplier": 1.0,
+    "InGamePlayerEventNotifications": true,
     "EventTimers": {
       "EventInterval": 30,
       "UseRandomTimer": false,
       "RandomTimerMin": 15,
       "RandomTimerMax": 45
-    },
-    "GlobalDropMultiplier": 1.0,
-    "NotifyEvent": true
+    }
   }
 }
 
-Warning Countdown:
+Option Descriptions:
+- EnableAutomaticEvents (bool): Enables/disables automatic meteor events. When false, only manual commands work
+- MinimumPlayerCount (int): Minimum number of players required online for events to trigger (default: 1)
+- GlobalDropMultiplier (float): Multiplies all item drop quantities across all intensity levels (default: 1.0)
+- InGamePlayerEventNotifications (bool): When enabled with Logging.ShowInGameMessages, sends colored chat notifications
+- EventTimers:
+  - EventInterval (int): Seconds between automatic events in fixed mode (default: 30 = 30 minutes)
+  - UseRandomTimer (bool): When true, events trigger at random intervals instead of fixed
+  - RandomTimerMin (int): Minimum seconds for random timer (default: 15 = 15 minutes)
+  - RandomTimerMax (int): Maximum seconds for random timer (default: 45 = 45 minutes)
+
+WARNING COUNTDOWN:
 
 The WarningCountdown feature adds a pre-event delay before meteor showers begin, giving
 your server time to prepare and perform a final performance check:
@@ -88,8 +103,8 @@ your server time to prepare and perform a final performance check:
 }
 
 Settings:
-- EnableWarning: Set to true to activate the countdown timer before events start
-- CountdownSeconds: Number of seconds to wait before the actual meteor event begins (default: 10)
+- EnableWarning (bool): Activates the countdown timer before events start
+- CountdownSeconds (float): Number of seconds to delay before meteor event begins (default: 10)
 
 How It Works:
 1. When a meteor event is triggered, if WarningCountdown is enabled, a countdown timer starts
@@ -97,34 +112,158 @@ How It Works:
 3. If FPS remains above the minimum threshold → meteor event begins normally
 4. If FPS drops below the minimum → event is cancelled and a Discord notification is sent (if configured)
 
-Performance Benefit:
-This feature provides an additional safety layer to prevent resource-intensive meteor events
-from launching during periods of server lag, protecting your players from unexpected performance issues.
+PERFORMANCE MONITORING:
 
-Intensity Settings:
+Monitor server performance and prevent events during lag:
 
-Mild Settings (Beginner Friendly):
-- Fire Rocket Chance: 30%
-- Radius: 500m
-- Duration: 240 seconds
-- Rockets: 20
-- Drops: Stones (80-120), Metal Ore (25-50)
+{
+  "Options": {
+    "PerformanceMonitoring": {
+      "EnableFPSCheck": true,
+      "MinimumFPS": 30.0
+    }
+  }
+}
 
-Medium Settings (Balanced):
-- Fire Rocket Chance: 20%
-- Radius: 300m
-- Duration: 120 seconds
-- Rockets: 45
-- Drops: Stones (160-250), Metal Fragments (60-120), HQ Metal Ore (20-50)
+Settings:
+- EnableFPSCheck (bool): When true, the plugin checks server FPS before starting events
+- MinimumFPS (float): Minimum acceptable FPS to allow events. Events cancelled if below this (default: 30.0)
 
-Extreme Settings (Hardcore):
-- Fire Rocket Chance: 10%
-- Radius: 100m
-- Duration: 30 seconds
-- Rockets: 70
-- Drops: Stones (250-400), Metal Fragments (125-300), Refined Metal (20-50), Sulfur Ore (45-120)
+VISUAL EFFECTS:
 
-Barrage Settings:
+Control visual effects during events:
+
+{
+  "Options": {
+    "VisualEffects": {
+      "EnableScreenShake": true,
+      "EnableParticleTrails": true
+    }
+  }
+}
+
+Settings:
+- EnableScreenShake (bool): When true, rockets create screen shake effects for nearby players
+- EnableParticleTrails (bool): When true, rockets display particle effect trails as they fall
+
+MAP MARKERS:
+
+Control in-game map markers for events:
+
+{
+  "Options": {
+    "MapMarkers": {
+      "EnableMapMarkers": true
+    }
+  }
+}
+
+Settings:
+- EnableMapMarkers (bool): When true, map markers appear at meteor event locations
+
+DAMAGE CONTROL:
+
+Control rocket damage impact on the server:
+
+{
+  "DamageControl": {
+    "DamageMultiplier": 0.2
+  }
+}
+
+Settings:
+- DamageMultiplier (float): Multiplier for rocket damage (default: 0.2 = 20% damage)
+
+LOGGING OPTIONS:
+
+Control console and in-game logging:
+
+{
+  "Logging": {
+    "LogToConsole": true,
+    "ShowInGameMessages": true,
+    "MinimumDamageThreshold": 1.0
+  }
+}
+
+Settings:
+- LogToConsole (bool): When true, logs detailed information to server console
+- ShowInGameMessages (bool): When true, enables in-game chat messages
+- MinimumDamageThreshold (float): Impacts below this value are not logged to Discord
+
+PUBLIC DISCORD CHANNEL:
+
+Configure public Discord notifications (visible to entire server):
+
+{
+  "Logging": {
+    "PublicChannel": {
+      "Enabled": false,
+      "Include Event Start End": true,
+      "Webhook URL": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
+    }
+  }
+}
+
+Settings:
+- Enabled (bool): Enable/disable public channel Discord notifications
+- Include Event Start End (bool): When true, sends event start and end messages to public channel
+- Webhook URL (string): Discord webhook URL for public notifications
+
+ADMIN DISCORD CHANNEL:
+
+Configure private Discord notifications (visible only to admins):
+
+{
+  "Logging": {
+    "AdminChannel": {
+      "Enabled?": true,
+      "Include Event Messages?": true,
+      "Include Impact Messages?": true,
+      "Webhook URL": "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
+      "Impact Filtering": {
+        "Log Player Impacts?": true,
+        "Log Structure Impacts?": false,
+        "Filter Smoke Rockets?": true
+      }
+    }
+  }
+}
+
+Admin Channel Settings:
+- Enabled? (bool): Enable/disable admin channel Discord notifications
+- Include Event Messages? (bool): When true, sends event start/end messages to admin channel
+- Include Impact Messages? (bool): When true, sends meteor impact details to admin channel
+- Webhook URL (string): Discord webhook URL for admin notifications
+
+Impact Filtering Settings:
+- Log Player Impacts? (bool): When true, logs when meteors hit players to Discord
+- Log Structure Impacts? (bool): When true, logs when meteors hit structures/bases to Discord
+- Filter Smoke Rockets? (bool): When true, prevents spam from smoke rocket impacts
+
+DISCORD RATE LIMITING:
+
+Prevent Discord API spam and rate limits:
+
+{
+  "Logging": {
+    "DiscordRateLimit": {
+      "EnableRateLimit": true,
+      "ImpactMessageCooldown": 1.0,
+      "MaxImpactsPerMinute": 28
+    }
+  }
+}
+
+Settings:
+- EnableRateLimit (bool): When true, enforces rate limiting to avoid Discord API throttling
+- ImpactMessageCooldown (float): Minimum seconds between impact messages (default: 1.0)
+- MaxImpactsPerMinute (int): Maximum impact messages sent per minute (default: 28)
+
+BARRAGE SETTINGS:
+
+Control the /cb barrage command behavior:
+
 {
   "BarrageSettings": {
     "NumberOfRockets": 20,
@@ -132,6 +271,99 @@ Barrage Settings:
     "RocketSpread": 16.0
   }
 }
+
+Settings:
+- NumberOfRockets (int): How many rockets fire during barrage mode (default: 20)
+- RocketDelay (float): Delay in seconds between each rocket (default: 0.33)
+- RocketSpread (float): Spread angle in degrees for rocket pattern (default: 16.0)
+
+INTENSITY SETTINGS:
+
+Each intensity level is fully customizable. Below are the default configurations:
+
+Mild Settings (Beginner Friendly):
+{
+  "Settings_Mild": {
+    "FireRocketChance": 30,
+    "Radius": 500.0,
+    "Duration": 240,
+    "RocketAmount": 20,
+    "ItemDropControl": {
+      "EnableItemDrop": true,
+      "ItemsToDrop": [
+        { "Shortname": "stones", "Minimum": 250, "Maximum": 500 },
+        { "Shortname": "metal.ore", "Minimum": 250, "Maximum": 500 },
+        { "Shortname": "sulfur.ore", "Minimum": 250, "Maximum": 500 },
+        { "Shortname": "scrap", "Minimum": 10, "Maximum": 20 }
+      ]
+    }
+  }
+}
+
+- 20 rockets over 240 seconds (4 minutes)
+- 500m event radius
+- Fire rockets with 30% chance
+- Beginner-friendly rewards with stones, ore, and scrap
+
+Medium Settings (Balanced):
+{
+  "Settings_Medium": {
+    "FireRocketChance": 20,
+    "Radius": 300.0,
+    "Duration": 120,
+    "RocketAmount": 45,
+    "ItemDropControl": {
+      "EnableItemDrop": true,
+      "ItemsToDrop": [
+        { "Shortname": "stones", "Minimum": 160, "Maximum": 250 },
+        { "Shortname": "metal.fragments", "Minimum": 60, "Maximum": 120 },
+        { "Shortname": "metal.refined", "Minimum": 20, "Maximum": 50 },
+        { "Shortname": "sulfur.ore", "Minimum": 10, "Maximum": 20 }
+      ]
+    }
+  }
+}
+
+- 45 rockets over 120 seconds (2 minutes)
+- 300m event radius
+- Fire rockets with 20% chance
+- Balanced rewards with better loot
+
+Extreme Settings (Hardcore):
+{
+  "Settings_Extreme": {
+    "FireRocketChance": 10,
+    "Radius": 100.0,
+    "Duration": 30,
+    "RocketAmount": 70,
+    "ItemDropControl": {
+      "EnableItemDrop": true,
+      "ItemsToDrop": [
+        { "Shortname": "stones", "Minimum": 250, "Maximum": 400 },
+        { "Shortname": "metal.fragments", "Minimum": 125, "Maximum": 300 },
+        { "Shortname": "metal.refined", "Minimum": 20, "Maximum": 50 },
+        { "Shortname": "sulfur.ore", "Minimum": 45, "Maximum": 120 }
+      ]
+    }
+  }
+}
+
+- 70 rockets over 30 seconds (high intensity!)
+- 100m event radius (smaller, more concentrated)
+- Fire rockets with 10% chance
+- Extreme rewards for hardcore players
+
+Intensity Settings Details:
+- FireRocketChance (int): Percentage of rockets that will be fire rockets (0-100)
+- Radius (float): Event radius in meters (area of effect)
+- Duration (int): Event duration in seconds
+- RocketAmount (int): Total number of rockets in the event
+- ItemDropControl:
+  - EnableItemDrop (bool): When true, items drop at meteor impact locations
+  - ItemsToDrop (array): List of items to drop with min/max quantities
+    - Shortname (string): Rust item shortname
+    - Minimum (int): Minimum quantity dropped per impact
+    - Maximum (int): Maximum quantity dropped per impact
 
 EVENT TYPES
 

@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.825")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.850")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -507,7 +507,7 @@ namespace Oxide.Plugins
             }
 
             // Send in-game notifications (independent of Discord)
-            if (configData.Logging.ShowInGameMessages && configData.Options.NotifyEvent)
+            if (configData.Logging.ShowInGameMessages && configData.Options.InGamePlayerEventNotifications)
             {
                 // Broadcast location info to all players
                 foreach (var player in BasePlayer.activePlayerList)
@@ -555,7 +555,7 @@ namespace Oxide.Plugins
                 }
                 
                 // Send in-game notifications (independent of Discord)
-                if (configData.Logging.ShowInGameMessages && configData.Options.NotifyEvent)
+                if (configData.Logging.ShowInGameMessages && configData.Options.InGamePlayerEventNotifications)
                 {
                     // Broadcast end to all players
                     foreach (var player in BasePlayer.activePlayerList)
@@ -2016,7 +2016,7 @@ namespace Oxide.Plugins
                 public bool EnableAutomaticEvents { get; set; }
                 public Timers EventTimers { get; set; }
                 public float GlobalDropMultiplier { get; set; }
-                public bool NotifyEvent { get; set; }
+                public bool InGamePlayerEventNotifications { get; set; }
                 public int MinimumPlayerCount { get; set; }
                 public PerformanceSettings PerformanceMonitoring { get; set; }
                 public WarningSettings WarningCountdown { get; set; }
@@ -2165,7 +2165,7 @@ namespace Oxide.Plugins
                         UseRandomTimer = false
                     },  
                     GlobalDropMultiplier = 1.0f,
-                    NotifyEvent = true,
+                    InGamePlayerEventNotifications = true,
                     MinimumPlayerCount = 1,
                     PerformanceMonitoring = new ConfigData.PerformanceSettings
                     {
@@ -2746,7 +2746,7 @@ namespace Oxide.Plugins
                         UseRandomTimer = false
                     },
                     GlobalDropMultiplier = 1.0f,
-                    NotifyEvent = true,
+                    InGamePlayerEventNotifications = true,
                     MinimumPlayerCount = 1,
                     PerformanceMonitoring = new ConfigData.PerformanceSettings
                     {
