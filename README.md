@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
-[![Version](https://img.shields.io/badge/Version-0.0.835-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
+[![Version](https://img.shields.io/badge/Version-0.0.840-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
@@ -95,7 +95,7 @@ The plugin creates `oxide/config/CelestialBarrage.json` with comprehensive confi
 - **EnableAutomaticEvents** (bool): Enables/disables automatic meteor events. When `false`, only manual commands work
 - **MinimumPlayerCount** (int): Minimum number of players required online for events to trigger (default: 1)
 - **GlobalDropMultiplier** (float): Multiplies all item drop quantities across all intensity levels (default: 1.0, range: 0.1-5.0)
-- **InGamePlayerEventNotifications** (bool): When enabled with `Logging.ShowInGameMessages`, sends colored chat notifications to all players when events start/end
+- **InGamePlayerEventNotifications** (bool): When enabled, sends colored chat notifications to all players when events start/end
 - **EventTimers**:
   - **EventInterval** (int): Seconds between automatic events in fixed mode (default: 30 = 30 minutes)
   - **UseRandomTimer** (bool): When `true`, events trigger at random intervals instead of fixed intervals
@@ -180,7 +180,6 @@ Control console and in-game logging:
 {
   "Logging": {
     "LogToConsole": true,
-    "ShowInGameMessages": true,
     "MinimumDamageThreshold": 1.0
   }
 }
@@ -188,7 +187,6 @@ Control console and in-game logging:
 
 **Settings:**
 - **LogToConsole** (bool): When `true`, plugin logs detailed information to server console for debugging
-- **ShowInGameMessages** (bool): When `true`, enables in-game chat messages (works with `InGamePlayerEventNotifications`)
 - **MinimumDamageThreshold** (float): Impacts with damage below this value are not logged to Discord (prevents spam from low-damage hits)
 
 ### 🌐 Public Discord Channel

@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.835
+Version: 0.0.840
 License: MIT
 Downloads: Available on GitHub
 
@@ -81,7 +81,7 @@ Option Descriptions:
 - EnableAutomaticEvents (bool): Enables/disables automatic meteor events. When false, only manual commands work
 - MinimumPlayerCount (int): Minimum number of players required online for events to trigger (default: 1)
 - GlobalDropMultiplier (float): Multiplies all item drop quantities across all intensity levels (default: 1.0)
-- InGamePlayerEventNotifications (bool): When enabled with Logging.ShowInGameMessages, sends colored chat notifications
+- InGamePlayerEventNotifications (bool): When enabled, sends colored chat notifications to all players when events start/end
 - EventTimers:
   - EventInterval (int): Seconds between automatic events in fixed mode (default: 30 = 30 minutes)
   - UseRandomTimer (bool): When true, events trigger at random intervals instead of fixed
@@ -157,14 +157,12 @@ Control console and in-game logging:
 {
   "Logging": {
     "LogToConsole": true,
-    "ShowInGameMessages": true,
     "MinimumDamageThreshold": 1.0
   }
 }
 
 Settings:
 - LogToConsole (bool): When true, logs detailed information to server console
-- ShowInGameMessages (bool): When true, enables in-game chat messages
 - MinimumDamageThreshold (float): Impacts below this value are not logged to Discord
 
 PUBLIC DISCORD CHANNEL:

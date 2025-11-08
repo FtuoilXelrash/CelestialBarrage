@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.835")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.840")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -477,7 +477,7 @@ namespace Oxide.Plugins
             }
 
             // Send in-game notifications (independent of Discord)
-            if (configData.Logging.ShowInGameMessages && configData.Options.InGamePlayerEventNotifications)
+            if (configData.Options.InGamePlayerEventNotifications)
             {
                 // Broadcast location info to all players
                 foreach (var player in BasePlayer.activePlayerList)
@@ -525,7 +525,7 @@ namespace Oxide.Plugins
                 }
                 
                 // Send in-game notifications (independent of Discord)
-                if (configData.Logging.ShowInGameMessages && configData.Options.InGamePlayerEventNotifications)
+                if (configData.Options.InGamePlayerEventNotifications)
                 {
                     // Broadcast end to all players
                     foreach (var player in BasePlayer.activePlayerList)
@@ -1996,7 +1996,6 @@ namespace Oxide.Plugins
             public class LoggingOptions
             {
                 public bool LogToConsole { get; set; }
-                public bool ShowInGameMessages { get; set; }
                 public float MinimumDamageThreshold { get; set; }
                 public PublicChannelOptions PublicChannel { get; set; }
                 public AdminChannelOptions AdminChannel { get; set; }
@@ -2151,7 +2150,6 @@ namespace Oxide.Plugins
                 Logging = new ConfigData.LoggingOptions
                 {
                     LogToConsole = true,
-                    ShowInGameMessages = true,
                     MinimumDamageThreshold = 1.0f,
                     PublicChannel = new ConfigData.PublicChannelOptions
                     {
@@ -2711,7 +2709,6 @@ namespace Oxide.Plugins
                 Logging = new ConfigData.LoggingOptions
                 {
                     LogToConsole = true,
-                    ShowInGameMessages = true,
                     MinimumDamageThreshold = 1.0f,
                     PublicChannel = new ConfigData.PublicChannelOptions
                     {
