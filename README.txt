@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.857
+Version: 0.0.859
 License: MIT
 Downloads: Available on GitHub
 
@@ -124,16 +124,16 @@ Settings:
 
 LOGGING OPTIONS:
 
-Control console logging:
+Control debug console logging:
 
 {
   "Logging": {
-    "LogToConsole": false
+    "LogDebugToConsole": false
   }
 }
 
 Settings:
-- LogToConsole (bool): When true, logs detailed information to server console (default: false)
+- LogDebugToConsole (bool): When true, logs detailed debug information to server console (default: false)
 
 PUBLIC DISCORD CHANNEL:
 
@@ -143,15 +143,13 @@ Configure public Discord notifications (visible to entire server):
   "Logging": {
     "PublicChannel": {
       "Enabled": false,
-      "Include Event Start End": true,
       "Webhook URL": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
     }
   }
 }
 
 Settings:
-- Enabled (bool): Enable/disable public channel Discord notifications
-- Include Event Start End (bool): When true, sends event start and end messages to public channel
+- Enabled (bool): Enable/disable public channel Discord notifications (when enabled, sends all event start/end messages to Discord)
 - Webhook URL (string): Discord webhook URL for public notifications
 
 ADMIN DISCORD CHANNEL:
@@ -167,7 +165,7 @@ Configure private Discord notifications (visible only to admins):
       "Webhook URL": "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
       "Impact Filtering": {
         "Log Player Impacts?": true,
-        "Log Structure Impacts?": false,
+        "Log Structure Impacts?": true,
         "Filter Smoke Rockets?": true,
         "Minimum Impact Damage Threshold": 50.0
       }
@@ -225,19 +223,17 @@ Settings:
 
 INTENSITY SETTINGS:
 
-Each intensity level is fully customizable. Global multiplier settings apply to all intensity levels.
+Each intensity level is fully customizable with its own damage multiplier.
 
 Global Settings:
 {
   "IntensitySettings": {
-    "DamageMultiplier": 0.5,
     "ItemDropMultiplier": 1.0,
     "Mild": { ... },
     "Medium": { ... },
     "Extreme": { ... }
   }
 }
-- DamageMultiplier (float): Global multiplier for all rocket damage (default: 0.5 = 50% damage). Applies to all intensity levels.
 - ItemDropMultiplier (float): Global multiplier for all item drop quantities across all intensity levels (default: 1.0 = 100%). Scales the min/max ranges for all dropped items. Use 0.5 for 50% drops, 2.0 for double drops, etc.
 
 Below are the default configurations for each intensity level:
@@ -245,6 +241,7 @@ Below are the default configurations for each intensity level:
 Mild Settings (Beginner Friendly):
 {
   "Mild": {
+    "DamageMultiplier": 0.25,
     "FireRocketChance": 30,
     "Radius": 500.0,
     "Duration": 240,
@@ -269,6 +266,7 @@ Mild Settings (Beginner Friendly):
 Medium Settings (Balanced):
 {
   "Medium": {
+    "DamageMultiplier": 0.5,
     "FireRocketChance": 20,
     "Radius": 300.0,
     "Duration": 120,
@@ -293,6 +291,7 @@ Medium Settings (Balanced):
 Extreme Settings (Hardcore):
 {
   "Extreme": {
+    "DamageMultiplier": 1.0,
     "FireRocketChance": 10,
     "Radius": 100.0,
     "Duration": 30,
@@ -315,6 +314,7 @@ Extreme Settings (Hardcore):
 - Extreme rewards for hardcore players
 
 Intensity Settings Details:
+- DamageMultiplier (float): Damage multiplier for this intensity level (Mild: 0.25, Medium: 0.5, Extreme: 1.0)
 - FireRocketChance (int): Percentage of rockets that will be fire rockets (0-100)
 - Radius (float): Event radius in meters (area of effect)
 - Duration (int): Event duration in seconds

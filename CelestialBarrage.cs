@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.857")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.859")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -63,7 +63,7 @@ namespace Oxide.Plugins
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
         {
             // Debug logging to help identify the issue
-            if (configData?.Logging?.LogToConsole == true)
+            if (configData?.Logging?.LogDebugToConsole == true)
             {
                 // Log all damage events during meteor showers for debugging
                 if (meteorRockets.Count > 0)
@@ -99,7 +99,7 @@ namespace Oxide.Plugins
             // Only process if near a meteor rocket
             if (nearMeteorRocket)
             {
-                if (configData?.Logging?.LogToConsole == true)
+                if (configData?.Logging?.LogDebugToConsole == true)
                 {
                     Puts($"[DEBUG] Meteor impact detected - Distance: {closestDistance:F1}m, Rocket: {closestRocket?.ShortPrefabName}");
                 }
@@ -112,7 +112,7 @@ namespace Oxide.Plugins
             // Clean up tracking when our rockets explode/die
             if (entity != null && meteorRockets.Contains(entity))
             {
-                if (configData?.Logging?.LogToConsole == true)
+                if (configData?.Logging?.LogDebugToConsole == true)
                 {
                     Puts($"[DEBUG] Removing tracked meteor projectile: {entity.ShortPrefabName} (Remaining: {meteorRockets.Count - 1})");
                 }
@@ -233,7 +233,7 @@ namespace Oxide.Plugins
                     discordMessageQueue.Enqueue(queuedMessage);
                 
                     // Enhanced logging for queue status
-                    if (configData.Logging.LogToConsole)
+                    if (configData.Logging.LogDebugToConsole)
                     {
                         Puts($"[DISCORD QUEUE] Message queued due to rate limiting. Queue size: {discordMessageQueue.Count}");
                     }
@@ -274,7 +274,7 @@ namespace Oxide.Plugins
             }
             
             // Log when processing queued messages
-            if (queueDelay > 5f && configData.Logging.LogToConsole)
+            if (queueDelay > 5f && configData.Logging.LogDebugToConsole)
             {
                 Puts($"[DISCORD QUEUE] Sent queued message (delayed {queueDelay:F0}s). {discordMessageQueue.Count} messages remaining in queue.");
             }
@@ -315,7 +315,7 @@ namespace Oxide.Plugins
                 SendSkippedEventDiscord(reason, eventType, additionalInfo);
 
                 // Keep console logging
-                if (configData.Logging.LogToConsole)
+                if (configData.Logging.LogDebugToConsole)
                 {
                     Puts($"CELESTIAL BARRAGE SKIPPED - Not enough players online ({BasePlayer.activePlayerList.Count} < {configData.Options.MinimumPlayerCount}) - {eventType}");
                 }
@@ -333,7 +333,7 @@ namespace Oxide.Plugins
                     SendSkippedEventDiscord(reason, eventType, additionalInfo);
 
                     // Keep console logging
-                    if (configData.Logging.LogToConsole)
+                    if (configData.Logging.LogDebugToConsole)
                     {
                         Puts($"CELESTIAL BARRAGE CANCELLED - Low FPS detected ({currentFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS}) - {eventType}");
                     }
@@ -471,7 +471,7 @@ namespace Oxide.Plugins
             SendEnhancedDiscordMessage(true, eventType, intensity, gridRef, numberOfRockets, duration, radius, origin, teleportCmd);
 
             // Send public Discord message if enabled
-            if (configData.Logging.PublicChannel.Enabled && configData.Logging.PublicChannel.IncludeEventStartEnd && IsValidWebhookUrl(configData.Logging.PublicChannel.PublicWebhookURL))
+            if (configData.Logging.PublicChannel.Enabled && IsValidWebhookUrl(configData.Logging.PublicChannel.PublicWebhookURL))
             {
                 SendPublicDiscordEmbed($"Celestial barrage started at {gridRef}!", intensity, gridRef, true);
             }
@@ -519,7 +519,7 @@ namespace Oxide.Plugins
                 SendEnhancedDiscordMessage(false, eventType, intensity, gridRef, numberOfRockets, duration, radius, origin, teleportCmd);
                 
                 // Send public Discord end message if enabled
-                if (configData.Logging.PublicChannel.Enabled && configData.Logging.PublicChannel.IncludeEventStartEnd && IsValidWebhookUrl(configData.Logging.PublicChannel.PublicWebhookURL))
+                if (configData.Logging.PublicChannel.Enabled && IsValidWebhookUrl(configData.Logging.PublicChannel.PublicWebhookURL))
                 {
                     SendPublicDiscordEmbed($"Celestial barrage ended at {gridRef}", intensity, gridRef, false);
                 }
@@ -637,7 +637,7 @@ namespace Oxide.Plugins
                 if (code != 200 && code != 204)
                 {
                     PrintError($"Failed to send enhanced Discord embed to Admin webhook. Response code: {code}");
-                    if (configData.Logging.LogToConsole)
+                    if (configData.Logging.LogDebugToConsole)
                     {
                         Puts($"Admin Discord webhook error response: {response}");
                     }
@@ -696,7 +696,7 @@ namespace Oxide.Plugins
                 if (RandomRange(1, setting.FireRocketChance) == 1)
                     isFireRocket = true;
 
-                BaseEntity rocket = CreateRocket(launchPos, direction, isFireRocket);
+                BaseEntity rocket = CreateRocket(launchPos, direction, isFireRocket, setting);
 
                 // Check if rocket creation failed
                 if (rocket == null)
@@ -736,7 +736,7 @@ namespace Oxide.Plugins
         {
             var barrageSpread = configData.BarrageSettings.RocketSpread;
             direction = Quaternion.Euler(UnityEngine.Random.Range((float)(-(double)barrageSpread * 0.5), barrageSpread * 0.5f), UnityEngine.Random.Range((float)(-(double)barrageSpread * 0.5), barrageSpread * 0.5f), UnityEngine.Random.Range((float)(-(double)barrageSpread * 0.5), barrageSpread * 0.5f)) * direction;
-            BaseEntity rocket = CreateRocket(origin, direction, false);
+            BaseEntity rocket = CreateRocket(origin, direction, false, configData.IntensitySettings.Medium);
             
             // Check if rocket creation failed
             if (rocket == null)
@@ -746,7 +746,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private BaseEntity CreateRocket(Vector3 startPoint, Vector3 direction, bool isFireRocket)
+        private BaseEntity CreateRocket(Vector3 startPoint, Vector3 direction, bool isFireRocket, ConfigData.Settings setting)
         {
             ItemDefinition projectileItem = null;
             wasGrenadeLauncherOverride = false; // Reset flag
@@ -805,7 +805,7 @@ namespace Oxide.Plugins
             }
 
             // Debug logging for projectile creation
-            if (configData?.Logging?.LogToConsole == true)
+            if (configData?.Logging?.LogDebugToConsole == true)
             {
                 Puts($"[DEBUG] Creating projectile: {projectileItem.shortname}");
             }
@@ -827,7 +827,7 @@ namespace Oxide.Plugins
             serverProjectile.speed = 25;
             timedExplosive.timerAmountMin = 300;
             timedExplosive.timerAmountMax = 300;
-            ScaleAllDamage(timedExplosive.damageTypes, configData.IntensitySettings.DamageMultiplier);
+            ScaleAllDamage(timedExplosive.damageTypes, setting.DamageMultiplier);
 
             // Add visual effects if enabled (simplified approach)
             if (configData.Options.VisualEffects.EnableParticleTrails)
@@ -842,7 +842,7 @@ namespace Oxide.Plugins
             meteorRockets.Add(entity);
             
             // Debug logging for tracking
-            if (configData?.Logging?.LogToConsole == true)
+            if (configData?.Logging?.LogDebugToConsole == true)
             {
                 Puts($"[DEBUG] Tracking meteor projectile: {entity.ShortPrefabName} (Total tracked: {meteorRockets.Count})");
             }
@@ -985,7 +985,7 @@ namespace Oxide.Plugins
             // Filter smoke rockets from structures/entities if configured (always 1.0 damage spam) but keep for players
             if (isSmokeRocket && !isPlayer && configData.Logging.AdminChannel.ImpactFiltering.FilterSmokeRockets)
             {
-                if (configData?.Logging?.LogToConsole == true)
+                if (configData?.Logging?.LogDebugToConsole == true)
                 {
                     string impactType = isPlayerStructure ? "Structure" : "Entity";
                     Puts($"[DEBUG] Smoke rocket impact filtered on {impactType} - {damageSource} - Damage: {totalDamage:F1} (FilterSmokeRockets enabled)");
@@ -1056,7 +1056,7 @@ namespace Oxide.Plugins
                 string teleportCmd = $"teleportpos {pos.x:F1} {pos.y:F1} {pos.z:F1}";
                 
                 // Enhanced debug logging
-                if (configData?.Logging?.LogToConsole == true)
+                if (configData?.Logging?.LogDebugToConsole == true)
                 {
                     string projectileType = "Unknown";
                     if (damageSource.Contains("rocket")) projectileType = "Rocket";
@@ -1067,7 +1067,7 @@ namespace Oxide.Plugins
                 }
 
                 // Console logging for admin monitoring
-                if (configData.Logging.LogToConsole)
+                if (configData.Logging.LogDebugToConsole)
                 {
                     string consoleMessage = isPlayer ?
                         $"METEOR IMPACT: {entityType} - Player: {ownerInfo} - Weapon: {damageSource} - {damageInfo}" :
@@ -1296,7 +1296,7 @@ namespace Oxide.Plugins
         private void LogMessage(string message, string logType)
         {
             // Always log to console if enabled
-            if (configData.Logging.LogToConsole)
+            if (configData.Logging.LogDebugToConsole)
             {
                 Puts(message);
             }
@@ -1387,7 +1387,7 @@ namespace Oxide.Plugins
                 if (code != 200 && code != 204)
                 {
                     PrintError($"Failed to send Discord embed to Public webhook. Response code: {code}");
-                    if (configData.Logging.LogToConsole)
+                    if (configData.Logging.LogDebugToConsole)
                     {
                         Puts($"Public Discord webhook error response: {response}");
                     }
@@ -1443,7 +1443,7 @@ namespace Oxide.Plugins
                 if (code != 200 && code != 204)
                 {
                     PrintError($"Failed to send skipped event Discord embed. Response code: {code}");
-                    if (configData.Logging.LogToConsole)
+                    if (configData.Logging.LogDebugToConsole)
                     {
                         Puts($"Discord webhook error response: {response}");
                     }
@@ -1520,7 +1520,7 @@ namespace Oxide.Plugins
                 if (code != 200 && code != 204)
                 {
                     PrintError($"Failed to send meteor impact Discord embed. Response code: {code}");
-                    if (configData.Logging.LogToConsole)
+                    if (configData.Logging.LogDebugToConsole)
                     {
                         Puts($"Discord webhook error response: {response}");
                     }
@@ -1606,7 +1606,7 @@ namespace Oxide.Plugins
                 {
                     string webhookType = isAdmin ? "Private Admin" : "Public";
                     PrintError($"Failed to send Discord embed to {webhookType} webhook. Response code: {code}");
-                    if (configData.Logging.LogToConsole)
+                    if (configData.Logging.LogDebugToConsole)
                     {
                         Puts($"Discord webhook error response: {response}");
                     }
@@ -1674,7 +1674,7 @@ namespace Oxide.Plugins
                 {
                     string webhookType = isAdmin ? "Private Admin" : "Public";
                     PrintError($"Failed to send Discord embed to {webhookType} webhook. Response code: {code}");
-                    if (configData.Logging.LogToConsole)
+                    if (configData.Logging.LogDebugToConsole)
                     {
                         Puts($"Discord webhook error response: {response}");
                     }
@@ -1981,7 +1981,7 @@ namespace Oxide.Plugins
 
             public class LoggingOptions
             {
-                public bool LogToConsole { get; set; }
+                public bool LogDebugToConsole { get; set; }
                 public PublicChannelOptions PublicChannel { get; set; }
                 public AdminChannelOptions AdminChannel { get; set; }
                 public DiscordRateLimitOptions DiscordRateLimit { get; set; }
@@ -1990,7 +1990,6 @@ namespace Oxide.Plugins
             public class PublicChannelOptions
             {
                 public bool Enabled { get; set; }
-                public bool IncludeEventStartEnd { get; set; }
                 [JsonProperty(PropertyName = "Webhook URL")]
                 public string PublicWebhookURL { get; set; }
             }
@@ -2053,6 +2052,7 @@ namespace Oxide.Plugins
 
             public class Settings
             {
+                public float DamageMultiplier { get; set; }
                 public int FireRocketChance { get; set; }
                 public float Radius { get; set; }
                 public int RocketAmount { get; set; }
@@ -2063,14 +2063,12 @@ namespace Oxide.Plugins
             public class IntensityOptions
             {
                 [JsonProperty(Order = 0)]
-                public float DamageMultiplier { get; set; }
-                [JsonProperty(Order = 1)]
                 public float ItemDropMultiplier { get; set; }
-                [JsonProperty(Order = 2)]
+                [JsonProperty(Order = 1)]
                 public Settings Mild { get; set; }
-                [JsonProperty(Order = 3)]
+                [JsonProperty(Order = 2)]
                 public Settings Medium { get; set; }
-                [JsonProperty(Order = 4)]
+                [JsonProperty(Order = 3)]
                 public Settings Extreme { get; set; }
             }
         }
@@ -2130,11 +2128,10 @@ namespace Oxide.Plugins
                 },
                 Logging = new ConfigData.LoggingOptions
                 {
-                    LogToConsole = false,
+                    LogDebugToConsole = false,
                     PublicChannel = new ConfigData.PublicChannelOptions
                     {
                         Enabled = false,
-                        IncludeEventStartEnd = true,
                         PublicWebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
                     },
                     AdminChannel = new ConfigData.AdminChannelOptions
@@ -2146,7 +2143,7 @@ namespace Oxide.Plugins
                         ImpactFiltering = new ConfigData.ImpactFilteringOptions
                         {
                             LogPlayerImpacts = true,
-                            LogStructureImpacts = false,
+                            LogStructureImpacts = true,
                             FilterSmokeRockets = true,
                             MinimumDamageThreshold = 50.0f
                         }
@@ -2160,10 +2157,10 @@ namespace Oxide.Plugins
                 },
                 IntensitySettings = new ConfigData.IntensityOptions
                 {
-                    DamageMultiplier = 0.5f,
                     ItemDropMultiplier = 1.0f,
                     Mild = new ConfigData.Settings
                     {
+                        DamageMultiplier = 0.25f,
                         FireRocketChance = 30,
                         Radius = 500f,
                         Duration = 240,
@@ -2182,6 +2179,7 @@ namespace Oxide.Plugins
                     },
                     Medium = new ConfigData.Settings
                     {
+                        DamageMultiplier = 0.5f,
                         FireRocketChance = 20,
                         Radius = 300f,
                         Duration = 120,
@@ -2201,6 +2199,7 @@ namespace Oxide.Plugins
                     },
                     Extreme = new ConfigData.Settings
                     {
+                        DamageMultiplier = 1.0f,
                         FireRocketChance = 10,
                         Radius = 100f,
                         Duration = 30,
@@ -2250,11 +2249,23 @@ namespace Oxide.Plugins
                 }
             }
 
-            // Validate IntensitySettings.DamageMultiplier
-            if (configData.IntensitySettings.DamageMultiplier == 0)
+            // Validate per-intensity DamageMultipliers
+            if (configData.IntensitySettings.Mild.DamageMultiplier == 0)
             {
-                Puts("Adding missing IntensitySettings.DamageMultiplier");
-                configData.IntensitySettings.DamageMultiplier = defaultConfig.IntensitySettings.DamageMultiplier;
+                Puts("Adding missing IntensitySettings.Mild.DamageMultiplier");
+                configData.IntensitySettings.Mild.DamageMultiplier = defaultConfig.IntensitySettings.Mild.DamageMultiplier;
+                configChanged = true;
+            }
+            if (configData.IntensitySettings.Medium.DamageMultiplier == 0)
+            {
+                Puts("Adding missing IntensitySettings.Medium.DamageMultiplier");
+                configData.IntensitySettings.Medium.DamageMultiplier = defaultConfig.IntensitySettings.Medium.DamageMultiplier;
+                configChanged = true;
+            }
+            if (configData.IntensitySettings.Extreme.DamageMultiplier == 0)
+            {
+                Puts("Adding missing IntensitySettings.Extreme.DamageMultiplier");
+                configData.IntensitySettings.Extreme.DamageMultiplier = defaultConfig.IntensitySettings.Extreme.DamageMultiplier;
                 configChanged = true;
             }
 
@@ -2667,11 +2678,10 @@ namespace Oxide.Plugins
                 },
                 Logging = new ConfigData.LoggingOptions
                 {
-                    LogToConsole = false,
+                    LogDebugToConsole = false,
                     PublicChannel = new ConfigData.PublicChannelOptions
                     {
                         Enabled = false,
-                        IncludeEventStartEnd = true,
                         PublicWebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
                     },
                     AdminChannel = new ConfigData.AdminChannelOptions
@@ -2683,7 +2693,7 @@ namespace Oxide.Plugins
                         ImpactFiltering = new ConfigData.ImpactFilteringOptions
                         {
                             LogPlayerImpacts = true,
-                            LogStructureImpacts = false,
+                            LogStructureImpacts = true,
                             FilterSmokeRockets = true,
                             MinimumDamageThreshold = 50.0f
                         }
@@ -2697,10 +2707,10 @@ namespace Oxide.Plugins
                 },
                 IntensitySettings = new ConfigData.IntensityOptions
                 {
-                    DamageMultiplier = 0.5f,
                     ItemDropMultiplier = 1.0f,
                     Mild = new ConfigData.Settings
                     {
+                        DamageMultiplier = 0.25f,
                         FireRocketChance = 30,
                         Radius = 500f,
                         Duration = 240,
@@ -2719,6 +2729,7 @@ namespace Oxide.Plugins
                     },
                     Medium = new ConfigData.Settings
                     {
+                        DamageMultiplier = 0.5f,
                         FireRocketChance = 20,
                         Radius = 300f,
                         Duration = 120,
@@ -2738,6 +2749,7 @@ namespace Oxide.Plugins
                     },
                     Extreme = new ConfigData.Settings
                     {
+                        DamageMultiplier = 1.0f,
                         FireRocketChance = 10,
                         Radius = 100f,
                         Duration = 30,
