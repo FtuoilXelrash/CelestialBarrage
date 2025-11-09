@@ -68,6 +68,7 @@ Core Event Settings:
     "MinimumPlayerCount": 1,
     "GlobalDropMultiplier": 1.0,
     "InGamePlayerEventNotifications": true,
+    "ShowEventMapMarkers": true,
     "EventTimers": {
       "EventInterval": 30,
       "UseRandomTimer": false,
@@ -82,6 +83,7 @@ Option Descriptions:
 - MinimumPlayerCount (int): Minimum number of players required online for events to trigger (default: 1)
 - GlobalDropMultiplier (float): Multiplies all item drop quantities across all intensity levels (default: 1.0)
 - InGamePlayerEventNotifications (bool): When enabled, sends colored chat notifications to all players when events start/end
+- ShowEventMapMarkers (bool): When true, map markers appear at meteor event locations to help players locate the action
 - EventTimers:
   - EventInterval (int): Seconds between automatic events in fixed mode (default: 30 = 30 minutes)
   - UseRandomTimer (bool): When true, events trigger at random intervals instead of fixed
@@ -121,21 +123,6 @@ Control visual effects during events:
 Settings:
 - EnableScreenShake (bool): When true, rockets create screen shake effects for nearby players
 - EnableParticleTrails (bool): When true, rockets display particle effect trails as they fall
-
-MAP MARKERS:
-
-Control in-game map markers for events:
-
-{
-  "Options": {
-    "MapMarkers": {
-      "EnableMapMarkers": true
-    }
-  }
-}
-
-Settings:
-- EnableMapMarkers (bool): When true, map markers appear at meteor event locations
 
 LOGGING OPTIONS:
 

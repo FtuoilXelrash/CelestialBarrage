@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.849")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.850")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -499,7 +499,7 @@ namespace Oxide.Plugins
             }
 
             // Create map marker if enabled
-            if (configData.Options.MapMarkers.EnableMapMarkers)
+            if (configData.Options.ShowEventMapMarkers)
             {
                 CreateMapMarker(origin, intensity, duration);
             }
@@ -1175,7 +1175,7 @@ namespace Oxide.Plugins
 
         private void CreateMapMarker(Vector3 position, string intensity, float duration)
         {
-            if (!configData.Options.MapMarkers.EnableMapMarkers)
+            if (!configData.Options.ShowEventMapMarkers)
                 return;
 
             try
@@ -1984,7 +1984,7 @@ namespace Oxide.Plugins
                 public int MinimumPlayerCount { get; set; }
                 public PerformanceSettings PerformanceMonitoring { get; set; }
                 public EffectsSettings VisualEffects { get; set; }
-                public MapMarkerSettings MapMarkers { get; set; }
+                public bool ShowEventMapMarkers { get; set; }
             }
 
             public class LoggingOptions
@@ -2046,11 +2046,6 @@ namespace Oxide.Plugins
             {
                 public bool EnableScreenShake { get; set; }
                 public bool EnableParticleTrails { get; set; }
-            }
-
-            public class MapMarkerSettings
-            {
-                public bool EnableMapMarkers { get; set; }
             }
 
             public class Timers
@@ -2135,10 +2130,7 @@ namespace Oxide.Plugins
                         EnableScreenShake = true,
                         EnableParticleTrails = true
                     },
-                    MapMarkers = new ConfigData.MapMarkerSettings
-                    {
-                        EnableMapMarkers = true
-                    }
+                    ShowEventMapMarkers = true
                 },
                 Logging = new ConfigData.LoggingOptions
                 {
@@ -2339,13 +2331,6 @@ namespace Oxide.Plugins
                 {
                     Puts("Adding missing Options.VisualEffects section");
                     configData.Options.VisualEffects = defaultConfig.Options.VisualEffects;
-                    configChanged = true;
-                }
-
-                if (configData.Options.MapMarkers == null)
-                {
-                    Puts("Adding missing Options.MapMarkers section");
-                    configData.Options.MapMarkers = defaultConfig.Options.MapMarkers;
                     configChanged = true;
                 }
             }
@@ -2682,10 +2667,7 @@ namespace Oxide.Plugins
                         EnableScreenShake = true,
                         EnableParticleTrails = true
                     },
-                    MapMarkers = new ConfigData.MapMarkerSettings
-                    {
-                        EnableMapMarkers = true
-                    }
+                    ShowEventMapMarkers = true
                 },
                 Logging = new ConfigData.LoggingOptions
                 {
