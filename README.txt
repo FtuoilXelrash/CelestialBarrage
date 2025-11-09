@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.856
+Version: 0.0.857
 License: MIT
 Downloads: Available on GitHub
 
@@ -128,12 +128,12 @@ Control console logging:
 
 {
   "Logging": {
-    "LogToConsole": true
+    "LogToConsole": false
   }
 }
 
 Settings:
-- LogToConsole (bool): When true, logs detailed information to server console
+- LogToConsole (bool): When true, logs detailed information to server console (default: false)
 
 PUBLIC DISCORD CHANNEL:
 
@@ -161,8 +161,8 @@ Configure private Discord notifications (visible only to admins):
 {
   "Logging": {
     "AdminChannel": {
-      "Enabled?": true,
-      "Include Event Messages?": true,
+      "Enabled?": false,
+      "Include Event Messages?": false,
       "Include Impact Messages?": true,
       "Webhook URL": "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
       "Impact Filtering": {
@@ -196,7 +196,7 @@ Prevent Discord API spam and rate limits:
     "DiscordRateLimit": {
       "EnableRateLimit": true,
       "ImpactMessageCooldown": 1.0,
-      "MaxImpactsPerMinute": 20
+      "MaxImpactsPerMinute": 15
     }
   }
 }
@@ -204,7 +204,7 @@ Prevent Discord API spam and rate limits:
 Settings:
 - EnableRateLimit (bool): When true, enforces rate limiting to avoid Discord API throttling
 - ImpactMessageCooldown (float): Minimum seconds between impact messages (default: 1.0)
-- MaxImpactsPerMinute (int): Maximum impact messages sent per minute (default: 20). Discord has a per-channel webhook limit of 30 messages/minute. Setting this to 20 provides a 10 message safety buffer for other webhooks/bots posting to the same channel, preventing rate limit errors
+- MaxImpactsPerMinute (int): Maximum impact messages sent per minute (default: 15). Discord has a per-channel webhook limit of 30 messages/minute. Setting this to 15 provides a 15 message safety buffer for other webhooks/bots posting to the same channel, preventing rate limit errors
 
 BARRAGE SETTINGS:
 
@@ -230,14 +230,14 @@ Each intensity level is fully customizable. Global multiplier settings apply to 
 Global Settings:
 {
   "IntensitySettings": {
-    "DamageMultiplier": 1.0,
+    "DamageMultiplier": 0.5,
     "ItemDropMultiplier": 1.0,
     "Mild": { ... },
     "Medium": { ... },
     "Extreme": { ... }
   }
 }
-- DamageMultiplier (float): Global multiplier for all rocket damage (default: 1.0 = 100% full damage). Applies to all intensity levels.
+- DamageMultiplier (float): Global multiplier for all rocket damage (default: 0.5 = 50% damage). Applies to all intensity levels.
 - ItemDropMultiplier (float): Global multiplier for all item drop quantities across all intensity levels (default: 1.0 = 100%). Scales the min/max ranges for all dropped items. Use 0.5 for 50% drops, 2.0 for double drops, etc.
 
 Below are the default configurations for each intensity level:

@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.856")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.857")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -2130,7 +2130,7 @@ namespace Oxide.Plugins
                 },
                 Logging = new ConfigData.LoggingOptions
                 {
-                    LogToConsole = true,
+                    LogToConsole = false,
                     PublicChannel = new ConfigData.PublicChannelOptions
                     {
                         Enabled = false,
@@ -2139,8 +2139,8 @@ namespace Oxide.Plugins
                     },
                     AdminChannel = new ConfigData.AdminChannelOptions
                     {
-                        Enabled = true,
-                        IncludeEventMessages = true,
+                        Enabled = false,
+                        IncludeEventMessages = false,
                         IncludeImpactMessages = true,
                         PrivateAdminWebhookURL = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
                         ImpactFiltering = new ConfigData.ImpactFilteringOptions
@@ -2155,12 +2155,12 @@ namespace Oxide.Plugins
                     {
                         EnableRateLimit = true,
                         ImpactMessageCooldown = 1.0f,
-                        MaxImpactsPerMinute = 20
+                        MaxImpactsPerMinute = 15
                     }
                 },
                 IntensitySettings = new ConfigData.IntensityOptions
                 {
-                    DamageMultiplier = 1.0f,
+                    DamageMultiplier = 0.5f,
                     ItemDropMultiplier = 1.0f,
                     Mild = new ConfigData.Settings
                     {
@@ -2667,7 +2667,7 @@ namespace Oxide.Plugins
                 },
                 Logging = new ConfigData.LoggingOptions
                 {
-                    LogToConsole = true,
+                    LogToConsole = false,
                     PublicChannel = new ConfigData.PublicChannelOptions
                     {
                         Enabled = false,
@@ -2676,8 +2676,8 @@ namespace Oxide.Plugins
                     },
                     AdminChannel = new ConfigData.AdminChannelOptions
                     {
-                        Enabled = true,
-                        IncludeEventMessages = true,
+                        Enabled = false,
+                        IncludeEventMessages = false,
                         IncludeImpactMessages = true,
                         PrivateAdminWebhookURL = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
                         ImpactFiltering = new ConfigData.ImpactFilteringOptions
@@ -2692,12 +2692,12 @@ namespace Oxide.Plugins
                     {
                         EnableRateLimit = true,
                         ImpactMessageCooldown = 1.0f,
-                        MaxImpactsPerMinute = 20
+                        MaxImpactsPerMinute = 15
                     }
                 },
                 IntensitySettings = new ConfigData.IntensityOptions
                 {
-                    DamageMultiplier = 1.0f,
+                    DamageMultiplier = 0.5f,
                     ItemDropMultiplier = 1.0f,
                     Mild = new ConfigData.Settings
                     {

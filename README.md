@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
-[![Version](https://img.shields.io/badge/Version-0.0.856-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
+[![Version](https://img.shields.io/badge/Version-0.0.857-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
@@ -147,13 +147,13 @@ Control console logging:
 ```json
 {
   "Logging": {
-    "LogToConsole": true
+    "LogToConsole": false
   }
 }
 ```
 
 **Settings:**
-- **LogToConsole** (bool): When `true`, plugin logs detailed information to server console for debugging
+- **LogToConsole** (bool): When `true`, plugin logs detailed information to server console for debugging (default: false)
 
 ### 🌐 Public Discord Channel
 
@@ -184,8 +184,8 @@ Configure private Discord notifications (visible only to admins):
 {
   "Logging": {
     "AdminChannel": {
-      "Enabled?": true,
-      "Include Event Messages?": true,
+      "Enabled?": false,
+      "Include Event Messages?": false,
       "Include Impact Messages?": true,
       "Webhook URL": "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
       "Impact Filtering": {
@@ -221,7 +221,7 @@ Prevent Discord API spam and rate limits:
     "DiscordRateLimit": {
       "EnableRateLimit": true,
       "ImpactMessageCooldown": 1.0,
-      "MaxImpactsPerMinute": 20
+      "MaxImpactsPerMinute": 15
     }
   }
 }
@@ -230,7 +230,7 @@ Prevent Discord API spam and rate limits:
 **Settings:**
 - **EnableRateLimit** (bool): When `true`, enforces rate limiting to avoid Discord API throttling
 - **ImpactMessageCooldown** (float): Minimum seconds between impact messages (default: 1.0, higher = less spam)
-- **MaxImpactsPerMinute** (int): Maximum impact messages sent to Discord per minute (default: 20). Discord has a per-channel webhook limit of 30 messages/minute. Setting this to 20 provides a 10 message safety buffer for other webhooks/bots posting to the same channel, preventing rate limit errors
+- **MaxImpactsPerMinute** (int): Maximum impact messages sent to Discord per minute (default: 15). Discord has a per-channel webhook limit of 30 messages/minute. Setting this to 15 provides a 15 message safety buffer for other webhooks/bots posting to the same channel, preventing rate limit errors
 
 ### 🎯 Barrage Settings
 
@@ -259,7 +259,7 @@ Each intensity level is fully customizable. Global multiplier settings apply to 
 ```json
 {
   "IntensitySettings": {
-    "DamageMultiplier": 1.0,
+    "DamageMultiplier": 0.5,
     "ItemDropMultiplier": 1.0,
     "Mild": { ... },
     "Medium": { ... },
@@ -267,7 +267,7 @@ Each intensity level is fully customizable. Global multiplier settings apply to 
   }
 }
 ```
-- **DamageMultiplier** (float): Global multiplier for all rocket damage (default: 1.0 = 100% full damage). Applies to all intensity levels. Use 0.0 for no damage, 0.5 for 50% damage, 2.0+ for increased damage
+- **DamageMultiplier** (float): Global multiplier for all rocket damage (default: 0.5 = 50% damage). Applies to all intensity levels. Use 0.0 for no damage, 1.0 for full damage, 2.0+ for increased damage
 - **ItemDropMultiplier** (float): Global multiplier for all item drop quantities across all intensity levels (default: 1.0 = 100%). Scales the min/max ranges for all dropped items. Use 0.5 for 50% drops, 2.0 for double drops, etc.
 
 Below are the default configurations for each intensity level:
