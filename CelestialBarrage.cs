@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.853")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.854")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -2031,6 +2031,8 @@ namespace Oxide.Plugins
             {
                 public bool EnableRateLimit { get; set; }
                 public float ImpactMessageCooldown { get; set; }
+                // Discord webhook per-channel limit is 30 messages/minute. Set this lower to avoid rate limiting.
+                // Default 20 provides safety margin (10 message buffer) for other webhooks/messages to the same channel.
                 public int MaxImpactsPerMinute { get; set; }
             }
 
@@ -2159,7 +2161,7 @@ namespace Oxide.Plugins
                     {
                         EnableRateLimit = true,
                         ImpactMessageCooldown = 1.0f,
-                        MaxImpactsPerMinute = 28
+                        MaxImpactsPerMinute = 20
                     }
                 },
                 IntensitySettings = new ConfigData.IntensityOptions
@@ -2696,7 +2698,7 @@ namespace Oxide.Plugins
                     {
                         EnableRateLimit = true,
                         ImpactMessageCooldown = 1.0f,
-                        MaxImpactsPerMinute = 28
+                        MaxImpactsPerMinute = 20
                     }
                 },
                 IntensitySettings = new ConfigData.IntensityOptions

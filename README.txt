@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.853
+Version: 0.0.854
 License: MIT
 Downloads: Available on GitHub
 
@@ -196,7 +196,7 @@ Prevent Discord API spam and rate limits:
     "DiscordRateLimit": {
       "EnableRateLimit": true,
       "ImpactMessageCooldown": 1.0,
-      "MaxImpactsPerMinute": 28
+      "MaxImpactsPerMinute": 20
     }
   }
 }
@@ -204,7 +204,7 @@ Prevent Discord API spam and rate limits:
 Settings:
 - EnableRateLimit (bool): When true, enforces rate limiting to avoid Discord API throttling
 - ImpactMessageCooldown (float): Minimum seconds between impact messages (default: 1.0)
-- MaxImpactsPerMinute (int): Maximum impact messages sent per minute (default: 28)
+- MaxImpactsPerMinute (int): Maximum impact messages sent per minute (default: 20). Discord has a per-channel webhook limit of 30 messages/minute. Setting this to 20 provides a 10 message safety buffer for other webhooks/bots posting to the same channel, preventing rate limit errors
 
 BARRAGE SETTINGS:
 

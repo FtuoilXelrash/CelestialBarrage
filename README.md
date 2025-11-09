@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
-[![Version](https://img.shields.io/badge/Version-0.0.853-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
+[![Version](https://img.shields.io/badge/Version-0.0.854-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
@@ -221,7 +221,7 @@ Prevent Discord API spam and rate limits:
     "DiscordRateLimit": {
       "EnableRateLimit": true,
       "ImpactMessageCooldown": 1.0,
-      "MaxImpactsPerMinute": 28
+      "MaxImpactsPerMinute": 20
     }
   }
 }
@@ -230,7 +230,7 @@ Prevent Discord API spam and rate limits:
 **Settings:**
 - **EnableRateLimit** (bool): When `true`, enforces rate limiting to avoid Discord API throttling
 - **ImpactMessageCooldown** (float): Minimum seconds between impact messages (default: 1.0, higher = less spam)
-- **MaxImpactsPerMinute** (int): Maximum impact messages sent to Discord per minute (default: 28, Discord limit is ~30/minute)
+- **MaxImpactsPerMinute** (int): Maximum impact messages sent to Discord per minute (default: 20). Discord has a per-channel webhook limit of 30 messages/minute. Setting this to 20 provides a 10 message safety buffer for other webhooks/bots posting to the same channel, preventing rate limit errors
 
 ### 🎯 Barrage Settings
 
