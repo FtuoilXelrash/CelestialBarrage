@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.852")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.853")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -288,10 +288,10 @@ namespace Oxide.Plugins
                 {
                     if (configData.Options.EventTimers.UseRandomTimer)
                     {
-                        var random = RandomRange(configData.Options.EventTimers.RandomTimerMin, configData.Options.EventTimers.RandomTimerMax);
+                        var random = RandomRange(configData.Options.EventTimers.RandomIntervalMinutesMin, configData.Options.EventTimers.RandomIntervalMinutesMax);
                         EventTimer = timer.Once(random * 60, () => { StartRandomOnMap(); StartEventTimer(); });
                     }
-                    else EventTimer = timer.Repeat(configData.Options.EventTimers.EventInterval * 60, 0, () => StartRandomOnMap());
+                    else EventTimer = timer.Repeat(configData.Options.EventTimers.EventIntervalMinutes * 60, 0, () => StartRandomOnMap());
                 }
             }
             catch (System.Exception ex)
@@ -2049,10 +2049,10 @@ namespace Oxide.Plugins
 
             public class Timers
             {
-                public int EventInterval { get; set; }
+                public int EventIntervalMinutes { get; set; }
                 public bool UseRandomTimer { get; set; }
-                public int RandomTimerMin { get; set; }
-                public int RandomTimerMax { get; set; }
+                public int RandomIntervalMinutesMin { get; set; }
+                public int RandomIntervalMinutesMax { get; set; }
             }
 
             public class Settings
@@ -2113,9 +2113,9 @@ namespace Oxide.Plugins
                     EnableAutomaticEvents = true,
                     EventTimers = new ConfigData.Timers
                     {
-                        EventInterval = 120,
-                        RandomTimerMax = 240,
-                        RandomTimerMin = 120,
+                        EventIntervalMinutes = 120,
+                        RandomIntervalMinutesMax = 240,
+                        RandomIntervalMinutesMin = 120,
                         UseRandomTimer = false
                     },
                     InGamePlayerEventNotifications = true,
@@ -2292,22 +2292,22 @@ namespace Oxide.Plugins
                 }
                 else
                 {
-                    if (configData.Options.EventTimers.EventInterval == 0)
+                    if (configData.Options.EventTimers.EventIntervalMinutes == 0)
                     {
-                        Puts("Adding missing EventTimers.EventInterval");
-                        configData.Options.EventTimers.EventInterval = defaultConfig.Options.EventTimers.EventInterval;
+                        Puts("Adding missing EventTimers.EventIntervalMinutes");
+                        configData.Options.EventTimers.EventIntervalMinutes = defaultConfig.Options.EventTimers.EventIntervalMinutes;
                         configChanged = true;
                     }
-                    if (configData.Options.EventTimers.RandomTimerMin == 0)
+                    if (configData.Options.EventTimers.RandomIntervalMinutesMin == 0)
                     {
-                        Puts("Adding missing EventTimers.RandomTimerMin");
-                        configData.Options.EventTimers.RandomTimerMin = defaultConfig.Options.EventTimers.RandomTimerMin;
+                        Puts("Adding missing EventTimers.RandomIntervalMinutesMin");
+                        configData.Options.EventTimers.RandomIntervalMinutesMin = defaultConfig.Options.EventTimers.RandomIntervalMinutesMin;
                         configChanged = true;
                     }
-                    if (configData.Options.EventTimers.RandomTimerMax == 0)
+                    if (configData.Options.EventTimers.RandomIntervalMinutesMax == 0)
                     {
-                        Puts("Adding missing EventTimers.RandomTimerMax");
-                        configData.Options.EventTimers.RandomTimerMax = defaultConfig.Options.EventTimers.RandomTimerMax;
+                        Puts("Adding missing EventTimers.RandomIntervalMinutesMax");
+                        configData.Options.EventTimers.RandomIntervalMinutesMax = defaultConfig.Options.EventTimers.RandomIntervalMinutesMax;
                         configChanged = true;
                     }
                 }
@@ -2650,9 +2650,9 @@ namespace Oxide.Plugins
                     EnableAutomaticEvents = true,
                     EventTimers = new ConfigData.Timers
                     {
-                        EventInterval = 120,
-                        RandomTimerMax = 240,
-                        RandomTimerMin = 120,
+                        EventIntervalMinutes = 120,
+                        RandomIntervalMinutesMax = 240,
+                        RandomIntervalMinutesMin = 120,
                         UseRandomTimer = false
                     },
                     InGamePlayerEventNotifications = true,

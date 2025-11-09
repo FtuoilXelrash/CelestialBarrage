@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
-[![Version](https://img.shields.io/badge/Version-0.0.852-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
+[![Version](https://img.shields.io/badge/Version-0.0.853-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
@@ -95,10 +95,10 @@ The plugin creates `oxide/config/CelestialBarrage.json` with comprehensive confi
 - **MinimumPlayerCount** (int): Minimum number of players required online for events to trigger (default: 1)
 - **InGamePlayerEventNotifications** (bool): When enabled, sends colored chat notifications to all players when events start/end
 - **EventTimers**:
-  - **EventInterval** (int): Seconds between automatic events in fixed mode (default: 30 = 30 minutes)
+  - **EventInterval** (int): Minutes between automatic events in fixed mode (default: 30 minutes)
   - **UseRandomTimer** (bool): When `true`, events trigger at random intervals instead of fixed intervals
-  - **RandomTimerMin** (int): Minimum seconds for random timer (default: 15 = 15 minutes)
-  - **RandomTimerMax** (int): Maximum seconds for random timer (default: 45 = 45 minutes)
+  - **RandomTimerMin** (int): Minimum minutes for random timer (default: 15 minutes)
+  - **RandomTimerMax** (int): Maximum minutes for random timer (default: 45 minutes)
 
 ### ⚡ Performance Monitoring
 

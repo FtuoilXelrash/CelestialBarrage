@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.852
+Version: 0.0.853
 License: MIT
 Downloads: Available on GitHub
 
@@ -81,10 +81,10 @@ Option Descriptions:
 - MinimumPlayerCount (int): Minimum number of players required online for events to trigger (default: 1)
 - InGamePlayerEventNotifications (bool): When enabled, sends colored chat notifications to all players when events start/end
 - EventTimers:
-  - EventInterval (int): Seconds between automatic events in fixed mode (default: 30 = 30 minutes)
+  - EventInterval (int): Minutes between automatic events in fixed mode (default: 30 minutes)
   - UseRandomTimer (bool): When true, events trigger at random intervals instead of fixed
-  - RandomTimerMin (int): Minimum seconds for random timer (default: 15 = 15 minutes)
-  - RandomTimerMax (int): Maximum seconds for random timer (default: 45 = 45 minutes)
+  - RandomTimerMin (int): Minimum minutes for random timer (default: 15 minutes)
+  - RandomTimerMax (int): Maximum minutes for random timer (default: 45 minutes)
 
 PERFORMANCE MONITORING:
 
