@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.860")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.861")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -359,7 +359,7 @@ namespace Oxide.Plugins
 
             // Use the random intensity selection wrapper
             var selectedSetting = GetRandomIntensitySetting();
-            StartRainOfFire(callAt, selectedSetting.setting, "Automatic Event");
+            StartCelestialEvent(callAt, selectedSetting.setting, "Automatic Event");
         }
 
         private (ConfigData.Settings setting, string intensity) GetRandomIntensitySetting()
@@ -387,7 +387,7 @@ namespace Oxide.Plugins
             if (player == null)
                 return false;
 
-            StartRainOfFire(player.transform.position, setting, eventType);
+            StartCelestialEvent(player.transform.position, setting, eventType);
             return true;
         }
 
@@ -403,7 +403,7 @@ namespace Oxide.Plugins
                 return false;
 
             var randomSetting = GetRandomIntensitySetting();
-            StartRainOfFire(player.transform.position, randomSetting.setting, eventType);
+            StartCelestialEvent(player.transform.position, randomSetting.setting, eventType);
             return true;
         }
 
@@ -414,12 +414,12 @@ namespace Oxide.Plugins
                 return;
 
             var randomSetting = GetRandomIntensitySetting();
-            StartRainOfFire(position, randomSetting.setting, eventType);
+            StartCelestialEvent(position, randomSetting.setting, eventType);
         }
 
         private void StartBarrage(Vector3 origin, Vector3 direction) => timer.Repeat(configData.BarrageSettings.RocketDelay, configData.BarrageSettings.NumberOfRockets, () => SpreadRocket(origin, direction));
 
-        private void StartRainOfFire(Vector3 origin, ConfigData.Settings setting, string eventType = "Manual")
+        private void StartCelestialEvent(Vector3 origin, ConfigData.Settings setting, string eventType = "Manual")
         {
             // ALWAYS check FPS before starting ANY event
             if (configData?.Options?.PerformanceMonitoring?.EnableFPSCheck == true)
@@ -1721,7 +1721,7 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-                        StartRainOfFire(player.transform.position, configData.IntensitySettings.Extreme, "Admin on Position");
+                        StartCelestialEvent(player.transform.position, configData.IntensitySettings.Extreme, "Admin on Position");
                         SendReply(player, msg("Extreme", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
                     break;
@@ -1736,7 +1736,7 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-                        StartRainOfFire(player.transform.position, configData.IntensitySettings.Medium, "Admin on Position");
+                        StartCelestialEvent(player.transform.position, configData.IntensitySettings.Medium, "Admin on Position");
                         SendReply(player, msg("Medium", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
                     break;
@@ -1751,7 +1751,7 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-                        StartRainOfFire(player.transform.position, configData.IntensitySettings.Mild, "Admin on Position");
+                        StartCelestialEvent(player.transform.position, configData.IntensitySettings.Mild, "Admin on Position");
                         SendReply(player, msg("Mild", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
                     break;
