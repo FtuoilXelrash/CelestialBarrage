@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.866
+Version: 1.0.1
 License: MIT
 Downloads: Available on GitHub
 
