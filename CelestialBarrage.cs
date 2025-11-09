@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.855")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.856")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -993,9 +993,9 @@ namespace Oxide.Plugins
                 return;
             }
 
-            if (totalDamage < configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold && !isPlayer && !isGrenadeImpact)
+            if (totalDamage < configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold && !isPlayer)
             {
-                // Damage too low and not a player/grenade impact - silently filter this impact
+                // Damage too low and not a player impact - silently filter this impact (applies to all projectile types)
                 return;
             }
             
