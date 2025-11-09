@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.851
+Version: 0.0.852
 License: MIT
 Downloads: Available on GitHub
 
@@ -66,7 +66,6 @@ Core Event Settings:
   "Options": {
     "EnableAutomaticEvents": true,
     "MinimumPlayerCount": 1,
-    "GlobalDropMultiplier": 1.0,
     "InGamePlayerEventNotifications": true,
     "EventTimers": {
       "EventInterval": 30,
@@ -80,7 +79,6 @@ Core Event Settings:
 Option Descriptions:
 - EnableAutomaticEvents (bool): Enables/disables automatic meteor events. When false, only manual commands work
 - MinimumPlayerCount (int): Minimum number of players required online for events to trigger (default: 1)
-- GlobalDropMultiplier (float): Multiplies all item drop quantities across all intensity levels (default: 1.0)
 - InGamePlayerEventNotifications (bool): When enabled, sends colored chat notifications to all players when events start/end
 - EventTimers:
   - EventInterval (int): Seconds between automatic events in fixed mode (default: 30 = 30 minutes)
@@ -227,18 +225,20 @@ Settings:
 
 INTENSITY SETTINGS:
 
-Each intensity level is fully customizable. The DamageMultiplier setting applies globally to all intensity levels.
+Each intensity level is fully customizable. Global multiplier settings apply to all intensity levels.
 
-Global Setting:
+Global Settings:
 {
   "IntensitySettings": {
     "DamageMultiplier": 1.0,
+    "ItemDropMultiplier": 1.0,
     "Mild": { ... },
     "Medium": { ... },
     "Extreme": { ... }
   }
 }
 - DamageMultiplier (float): Global multiplier for all rocket damage (default: 1.0 = 100% full damage). Applies to all intensity levels.
+- ItemDropMultiplier (float): Global multiplier for all item drop quantities across all intensity levels (default: 1.0 = 100%). Scales the min/max ranges for all dropped items. Use 0.5 for 50% drops, 2.0 for double drops, etc.
 
 Below are the default configurations for each intensity level:
 

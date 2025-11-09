@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
-[![Version](https://img.shields.io/badge/Version-0.0.851-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
+[![Version](https://img.shields.io/badge/Version-0.0.852-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
@@ -79,7 +79,6 @@ The plugin creates `oxide/config/CelestialBarrage.json` with comprehensive confi
   "Options": {
     "EnableAutomaticEvents": true,
     "MinimumPlayerCount": 1,
-    "GlobalDropMultiplier": 1.0,
     "InGamePlayerEventNotifications": true,
     "EventTimers": {
       "EventInterval": 30,
@@ -94,7 +93,6 @@ The plugin creates `oxide/config/CelestialBarrage.json` with comprehensive confi
 **Option Descriptions:**
 - **EnableAutomaticEvents** (bool): Enables/disables automatic meteor events. When `false`, only manual commands work
 - **MinimumPlayerCount** (int): Minimum number of players required online for events to trigger (default: 1)
-- **GlobalDropMultiplier** (float): Multiplies all item drop quantities across all intensity levels (default: 1.0, range: 0.1-5.0)
 - **InGamePlayerEventNotifications** (bool): When enabled, sends colored chat notifications to all players when events start/end
 - **EventTimers**:
   - **EventInterval** (int): Seconds between automatic events in fixed mode (default: 30 = 30 minutes)
@@ -255,13 +253,14 @@ Control the `/cb barrage` command behavior:
 
 ### 🌊 Intensity Settings
 
-Each intensity level is fully customizable. The DamageMultiplier setting applies globally to all intensity levels.
+Each intensity level is fully customizable. Global multiplier settings apply to all intensity levels.
 
-**Global Setting:**
+**Global Settings:**
 ```json
 {
   "IntensitySettings": {
     "DamageMultiplier": 1.0,
+    "ItemDropMultiplier": 1.0,
     "Mild": { ... },
     "Medium": { ... },
     "Extreme": { ... }
@@ -269,6 +268,7 @@ Each intensity level is fully customizable. The DamageMultiplier setting applies
 }
 ```
 - **DamageMultiplier** (float): Global multiplier for all rocket damage (default: 1.0 = 100% full damage). Applies to all intensity levels. Use 0.0 for no damage, 0.5 for 50% damage, 2.0+ for increased damage
+- **ItemDropMultiplier** (float): Global multiplier for all item drop quantities across all intensity levels (default: 1.0 = 100%). Scales the min/max ranges for all dropped items. Use 0.5 for 50% drops, 2.0 for double drops, etc.
 
 Below are the default configurations for each intensity level:
 

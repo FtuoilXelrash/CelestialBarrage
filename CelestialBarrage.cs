@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.851")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.852")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -709,7 +709,7 @@ namespace Oxide.Plugins
                 {
                     var comp = rocket.gameObject.AddComponent<ItemCarrier>();
                     comp.SetCarriedItems(setting.ItemDropControl.ItemsToDrop);
-                    comp.SetDropMultiplier(configData.Options.GlobalDropMultiplier);
+                    comp.SetDropMultiplier(configData.IntensitySettings.ItemDropMultiplier);
                 }
 
                 // If grenade launcher override occurred, spawn bonus original projectile
@@ -1979,7 +1979,6 @@ namespace Oxide.Plugins
             {
                 public bool EnableAutomaticEvents { get; set; }
                 public Timers EventTimers { get; set; }
-                public float GlobalDropMultiplier { get; set; }
                 public bool InGamePlayerEventNotifications { get; set; }
                 public int MinimumPlayerCount { get; set; }
                 public PerformanceSettings PerformanceMonitoring { get; set; }
@@ -2070,10 +2069,12 @@ namespace Oxide.Plugins
                 [JsonProperty(Order = 0)]
                 public float DamageMultiplier { get; set; }
                 [JsonProperty(Order = 1)]
-                public Settings Mild { get; set; }
+                public float ItemDropMultiplier { get; set; }
                 [JsonProperty(Order = 2)]
-                public Settings Medium { get; set; }
+                public Settings Mild { get; set; }
                 [JsonProperty(Order = 3)]
+                public Settings Medium { get; set; }
+                [JsonProperty(Order = 4)]
                 public Settings Extreme { get; set; }
             }
         }
@@ -2116,8 +2117,7 @@ namespace Oxide.Plugins
                         RandomTimerMax = 240,
                         RandomTimerMin = 120,
                         UseRandomTimer = false
-                    },  
-                    GlobalDropMultiplier = 1.0f,
+                    },
                     InGamePlayerEventNotifications = true,
                     MinimumPlayerCount = 1,
                     PerformanceMonitoring = new ConfigData.PerformanceSettings
@@ -2165,6 +2165,7 @@ namespace Oxide.Plugins
                 IntensitySettings = new ConfigData.IntensityOptions
                 {
                     DamageMultiplier = 1.0f,
+                    ItemDropMultiplier = 1.0f,
                     Mild = new ConfigData.Settings
                     {
                         FireRocketChance = 30,
@@ -2270,10 +2271,10 @@ namespace Oxide.Plugins
             }
             else
             {
-                if (configData.Options.GlobalDropMultiplier == 0)
+                if (configData.IntensitySettings.ItemDropMultiplier == 0)
                 {
-                    Puts("Adding missing Options.GlobalDropMultiplier");
-                    configData.Options.GlobalDropMultiplier = defaultConfig.Options.GlobalDropMultiplier;
+                    Puts("Adding missing IntensitySettings.ItemDropMultiplier");
+                    configData.IntensitySettings.ItemDropMultiplier = defaultConfig.IntensitySettings.ItemDropMultiplier;
                     configChanged = true;
                 }
                 if (configData.Options.MinimumPlayerCount == 0)
@@ -2654,7 +2655,6 @@ namespace Oxide.Plugins
                         RandomTimerMin = 120,
                         UseRandomTimer = false
                     },
-                    GlobalDropMultiplier = 1.0f,
                     InGamePlayerEventNotifications = true,
                     MinimumPlayerCount = 1,
                     PerformanceMonitoring = new ConfigData.PerformanceSettings
@@ -2702,6 +2702,7 @@ namespace Oxide.Plugins
                 IntensitySettings = new ConfigData.IntensityOptions
                 {
                     DamageMultiplier = 1.0f,
+                    ItemDropMultiplier = 1.0f,
                     Mild = new ConfigData.Settings
                     {
                         FireRocketChance = 30,
