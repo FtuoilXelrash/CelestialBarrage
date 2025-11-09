@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
-[![Version](https://img.shields.io/badge/Version-0.0.840-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
+[![Version](https://img.shields.io/badge/Version-0.0.851-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
@@ -81,7 +81,6 @@ The plugin creates `oxide/config/CelestialBarrage.json` with comprehensive confi
     "MinimumPlayerCount": 1,
     "GlobalDropMultiplier": 1.0,
     "InGamePlayerEventNotifications": true,
-    "ShowEventMapMarkers": true,
     "EventTimers": {
       "EventInterval": 30,
       "UseRandomTimer": false,
@@ -97,7 +96,6 @@ The plugin creates `oxide/config/CelestialBarrage.json` with comprehensive confi
 - **MinimumPlayerCount** (int): Minimum number of players required online for events to trigger (default: 1)
 - **GlobalDropMultiplier** (float): Multiplies all item drop quantities across all intensity levels (default: 1.0, range: 0.1-5.0)
 - **InGamePlayerEventNotifications** (bool): When enabled, sends colored chat notifications to all players when events start/end
-- **ShowEventMapMarkers** (bool): When `true`, map markers appear at meteor event locations to help players locate the action
 - **EventTimers**:
   - **EventInterval** (int): Seconds between automatic events in fixed mode (default: 30 = 30 minutes)
   - **UseRandomTimer** (bool): When `true`, events trigger at random intervals instead of fixed intervals
@@ -132,7 +130,8 @@ Control visual effects during events:
   "Options": {
     "VisualEffects": {
       "EnableScreenShake": true,
-      "EnableParticleTrails": true
+      "EnableParticleTrails": true,
+      "ShowEventMapMarkers": true
     }
   }
 }
@@ -141,6 +140,7 @@ Control visual effects during events:
 **Settings:**
 - **EnableScreenShake** (bool): When `true`, rockets create screen shake effects for nearby players
 - **EnableParticleTrails** (bool): When `true`, rockets display particle effect trails as they fall
+- **ShowEventMapMarkers** (bool): When `true`, map markers appear at meteor event locations to help players locate the action
 
 ### 🔊 Logging Options
 
@@ -391,7 +391,7 @@ Below are the default configurations for each intensity level:
 - **Lag Prevention:** Controlled rocket intervals
 
 ### ⚖️ Balance Features
-- **Damage Scaling:** Global multiplier (default: 0.2x)
+- **Damage Scaling:** Global multiplier (default: 1.0 = 100% full damage)
 - **Map Boundaries:** 600m buffer from edges
 - **Safe Zones:** Respects terrain and water levels
 - **Performance Tuning:** Configurable for different server sizes

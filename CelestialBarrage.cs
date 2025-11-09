@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.850")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.851")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -499,7 +499,7 @@ namespace Oxide.Plugins
             }
 
             // Create map marker if enabled
-            if (configData.Options.ShowEventMapMarkers)
+            if (configData.Options.VisualEffects.ShowEventMapMarkers)
             {
                 CreateMapMarker(origin, intensity, duration);
             }
@@ -1175,7 +1175,7 @@ namespace Oxide.Plugins
 
         private void CreateMapMarker(Vector3 position, string intensity, float duration)
         {
-            if (!configData.Options.ShowEventMapMarkers)
+            if (!configData.Options.VisualEffects.ShowEventMapMarkers)
                 return;
 
             try
@@ -1984,7 +1984,6 @@ namespace Oxide.Plugins
                 public int MinimumPlayerCount { get; set; }
                 public PerformanceSettings PerformanceMonitoring { get; set; }
                 public EffectsSettings VisualEffects { get; set; }
-                public bool ShowEventMapMarkers { get; set; }
             }
 
             public class LoggingOptions
@@ -2046,6 +2045,7 @@ namespace Oxide.Plugins
             {
                 public bool EnableScreenShake { get; set; }
                 public bool EnableParticleTrails { get; set; }
+                public bool ShowEventMapMarkers { get; set; }
             }
 
             public class Timers
@@ -2128,9 +2128,9 @@ namespace Oxide.Plugins
                     VisualEffects = new ConfigData.EffectsSettings
                     {
                         EnableScreenShake = true,
-                        EnableParticleTrails = true
-                    },
-                    ShowEventMapMarkers = true
+                        EnableParticleTrails = true,
+                        ShowEventMapMarkers = true
+                    }
                 },
                 Logging = new ConfigData.LoggingOptions
                 {
@@ -2665,9 +2665,9 @@ namespace Oxide.Plugins
                     VisualEffects = new ConfigData.EffectsSettings
                     {
                         EnableScreenShake = true,
-                        EnableParticleTrails = true
-                    },
-                    ShowEventMapMarkers = true
+                        EnableParticleTrails = true,
+                        ShowEventMapMarkers = true
+                    }
                 },
                 Logging = new ConfigData.LoggingOptions
                 {
