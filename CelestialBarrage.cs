@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.859")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.860")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -981,17 +981,6 @@ namespace Oxide.Plugins
             bool isCatapultImpact = damageSource.Contains("boulder") || damageSource.Contains("catapult");
             bool isGrenadeImpact = damageSource.Contains("40mm") || damageSource.Contains("grenade");
             bool isSmokeRocket = damageSource.Contains("smoke");
-
-            // Filter smoke rockets from structures/entities if configured (always 1.0 damage spam) but keep for players
-            if (isSmokeRocket && !isPlayer && configData.Logging.AdminChannel.ImpactFiltering.FilterSmokeRockets)
-            {
-                if (configData?.Logging?.LogDebugToConsole == true)
-                {
-                    string impactType = isPlayerStructure ? "Structure" : "Entity";
-                    Puts($"[DEBUG] Smoke rocket impact filtered on {impactType} - {damageSource} - Damage: {totalDamage:F1} (FilterSmokeRockets enabled)");
-                }
-                return;
-            }
 
             if (totalDamage < configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold && !isPlayer)
             {
@@ -2014,8 +2003,6 @@ namespace Oxide.Plugins
                 public bool LogPlayerImpacts { get; set; }
                 [JsonProperty(PropertyName = "Log Structure Impacts?")]
                 public bool LogStructureImpacts { get; set; }
-                [JsonProperty(PropertyName = "Filter Smoke Rockets?")]
-                public bool FilterSmokeRockets { get; set; }
                 [JsonProperty(PropertyName = "Minimum Impact Damage Threshold")]
                 public float MinimumDamageThreshold { get; set; }
             }
@@ -2144,7 +2131,6 @@ namespace Oxide.Plugins
                         {
                             LogPlayerImpacts = true,
                             LogStructureImpacts = true,
-                            FilterSmokeRockets = true,
                             MinimumDamageThreshold = 50.0f
                         }
                     },
@@ -2694,7 +2680,6 @@ namespace Oxide.Plugins
                         {
                             LogPlayerImpacts = true,
                             LogStructureImpacts = true,
-                            FilterSmokeRockets = true,
                             MinimumDamageThreshold = 50.0f
                         }
                     },

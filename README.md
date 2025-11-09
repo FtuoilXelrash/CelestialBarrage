@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
-[![Version](https://img.shields.io/badge/Version-0.0.859-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
+[![Version](https://img.shields.io/badge/Version-0.0.860-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
@@ -189,7 +189,6 @@ Configure private Discord notifications (visible only to admins):
       "Impact Filtering": {
         "Log Player Impacts?": true,
         "Log Structure Impacts?": true,
-        "Filter Smoke Rockets?": true,
         "Minimum Impact Damage Threshold": 50.0
       }
     }
@@ -206,8 +205,7 @@ Configure private Discord notifications (visible only to admins):
 **Impact Filtering Settings:**
 - **Log Player Impacts?** (bool): When `true`, logs when meteors hit players to Discord
 - **Log Structure Impacts?** (bool): When `true`, logs when meteors hit structures/bases to Discord
-- **Filter Smoke Rockets?** (bool): When `true`, prevents spam from smoke rocket impacts (they don't cause real damage)
-- **Minimum Impact Damage Threshold** (float): Only logs impacts with damage of this amount or higher (default: 50.0). Prevents Discord spam from low-damage hits
+- **Minimum Impact Damage Threshold** (float): Only logs impacts with damage of this amount or higher (default: 50.0). Prevents Discord spam from low-damage hits (includes filtering of smoke rockets which do 0 damage)
 
 ### 🎯 Discord Rate Limiting
 

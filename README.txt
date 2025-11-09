@@ -2,7 +2,7 @@ Celestial Barrage
 
 Game: Rust
 Framework: Umod
-Version: 0.0.859
+Version: 0.0.860
 License: MIT
 Downloads: Available on GitHub
 
@@ -166,7 +166,6 @@ Configure private Discord notifications (visible only to admins):
       "Impact Filtering": {
         "Log Player Impacts?": true,
         "Log Structure Impacts?": true,
-        "Filter Smoke Rockets?": true,
         "Minimum Impact Damage Threshold": 50.0
       }
     }
@@ -182,8 +181,7 @@ Admin Channel Settings:
 Impact Filtering Settings:
 - Log Player Impacts? (bool): When true, logs when meteors hit players to Discord
 - Log Structure Impacts? (bool): When true, logs when meteors hit structures/bases to Discord
-- Filter Smoke Rockets? (bool): When true, prevents spam from smoke rocket impacts
-- Minimum Impact Damage Threshold (float): Only logs impacts with damage of this amount or higher (default: 50.0). Prevents Discord spam from low-damage hits
+- Minimum Impact Damage Threshold (float): Only logs impacts with damage of this amount or higher (default: 50.0). Prevents Discord spam from low-damage hits (includes filtering of smoke rockets which do 0 damage)
 
 DISCORD RATE LIMITING:
 
