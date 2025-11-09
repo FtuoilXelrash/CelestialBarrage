@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.863")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.864")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -435,7 +435,7 @@ namespace Oxide.Plugins
 
             float radius = setting.Radius;
             int numberOfRockets = setting.RocketAmount;
-            float duration = setting.Duration;
+            float duration = setting.DurationSeconds;
             bool dropsItems = setting.ItemDropControl.EnableItemDrop;
             ItemDrop[] itemDrops = setting.ItemDropControl.ItemsToDrop;
 
@@ -2059,7 +2059,7 @@ namespace Oxide.Plugins
                 public int FireRocketChance { get; set; }
                 public float Radius { get; set; }
                 public int RocketAmount { get; set; }
-                public int Duration { get; set; }
+                public int DurationSeconds { get; set; }
                 public Drops ItemDropControl { get; set; }
             }
 
@@ -2110,10 +2110,10 @@ namespace Oxide.Plugins
                     EnableAutomaticEvents = true,
                     EventTimers = new ConfigData.Timers
                     {
-                        EventIntervalMinutes = 120,
-                        RandomIntervalMinutesMax = 240,
-                        RandomIntervalMinutesMin = 120,
-                        UseRandomTimer = false
+                        EventIntervalMinutes = 360,
+                        RandomIntervalMinutesMax = 360,
+                        RandomIntervalMinutesMin = 180,
+                        UseRandomTimer = true
                     },
                     InGamePlayerEventNotifications = true,
                     MinimumPlayerCount = 1,
@@ -2165,7 +2165,7 @@ namespace Oxide.Plugins
                         DamageMultiplier = 0.25f,
                         FireRocketChance = 30,
                         Radius = 500f,
-                        Duration = 240,
+                        DurationSeconds = 240,
                         RocketAmount = 20,
                         ItemDropControl = new ConfigData.Drops
                         {
@@ -2184,7 +2184,7 @@ namespace Oxide.Plugins
                         DamageMultiplier = 0.5f,
                         FireRocketChance = 20,
                         Radius = 300f,
-                        Duration = 120,
+                        DurationSeconds =120,
                         RocketAmount = 45,
                         ItemDropControl = new ConfigData.Drops
                         {
@@ -2204,7 +2204,7 @@ namespace Oxide.Plugins
                         DamageMultiplier = 1.0f,
                         FireRocketChance = 10,
                         Radius = 100f,
-                        Duration = 30,
+                        DurationSeconds =30,
                         RocketAmount = 70,
                         ItemDropControl = new ConfigData.Drops
                         {
@@ -2470,10 +2470,10 @@ namespace Oxide.Plugins
                         configData.IntensitySettings.Mild.RocketAmount = defaultConfig.IntensitySettings.Mild.RocketAmount;
                         configChanged = true;
                     }
-                    if (configData.IntensitySettings.Mild.Duration == 0)
+                    if (configData.IntensitySettings.Mild.DurationSeconds == 0)
                     {
-                        Puts("Adding missing Mild.Duration");
-                        configData.IntensitySettings.Mild.Duration = defaultConfig.IntensitySettings.Mild.Duration;
+                        Puts("Adding missing Mild.DurationSeconds");
+                        configData.IntensitySettings.Mild.DurationSeconds = defaultConfig.IntensitySettings.Mild.DurationSeconds;
                         configChanged = true;
                     }
                     if (configData.IntensitySettings.Mild.ItemDropControl == null)
@@ -2510,10 +2510,10 @@ namespace Oxide.Plugins
                         configData.IntensitySettings.Medium.RocketAmount = defaultConfig.IntensitySettings.Medium.RocketAmount;
                         configChanged = true;
                     }
-                    if (configData.IntensitySettings.Medium.Duration == 0)
+                    if (configData.IntensitySettings.Medium.DurationSeconds == 0)
                     {
-                        Puts("Adding missing Medium.Duration");
-                        configData.IntensitySettings.Medium.Duration = defaultConfig.IntensitySettings.Medium.Duration;
+                        Puts("Adding missing Medium.DurationSeconds");
+                        configData.IntensitySettings.Medium.DurationSeconds = defaultConfig.IntensitySettings.Medium.DurationSeconds;
                         configChanged = true;
                     }
                     if (configData.IntensitySettings.Medium.ItemDropControl == null)
@@ -2550,10 +2550,10 @@ namespace Oxide.Plugins
                         configData.IntensitySettings.Extreme.RocketAmount = defaultConfig.IntensitySettings.Extreme.RocketAmount;
                         configChanged = true;
                     }
-                    if (configData.IntensitySettings.Extreme.Duration == 0)
+                    if (configData.IntensitySettings.Extreme.DurationSeconds == 0)
                     {
-                        Puts("Adding missing Extreme.Duration");
-                        configData.IntensitySettings.Extreme.Duration = defaultConfig.IntensitySettings.Extreme.Duration;
+                        Puts("Adding missing Extreme.DurationSeconds");
+                        configData.IntensitySettings.Extreme.DurationSeconds = defaultConfig.IntensitySettings.Extreme.DurationSeconds;
                         configChanged = true;
                     }
                     if (configData.IntensitySettings.Extreme.ItemDropControl == null)
@@ -2659,10 +2659,10 @@ namespace Oxide.Plugins
                     EnableAutomaticEvents = true,
                     EventTimers = new ConfigData.Timers
                     {
-                        EventIntervalMinutes = 120,
-                        RandomIntervalMinutesMax = 240,
-                        RandomIntervalMinutesMin = 120,
-                        UseRandomTimer = false
+                        EventIntervalMinutes = 360,
+                        RandomIntervalMinutesMax = 360,
+                        RandomIntervalMinutesMin = 180,
+                        UseRandomTimer = true
                     },
                     InGamePlayerEventNotifications = true,
                     MinimumPlayerCount = 1,
@@ -2714,7 +2714,7 @@ namespace Oxide.Plugins
                         DamageMultiplier = 0.25f,
                         FireRocketChance = 30,
                         Radius = 500f,
-                        Duration = 240,
+                        DurationSeconds = 240,
                         RocketAmount = 20,
                         ItemDropControl = new ConfigData.Drops
                         {
@@ -2733,7 +2733,7 @@ namespace Oxide.Plugins
                         DamageMultiplier = 0.5f,
                         FireRocketChance = 20,
                         Radius = 300f,
-                        Duration = 120,
+                        DurationSeconds =120,
                         RocketAmount = 45,
                         ItemDropControl = new ConfigData.Drops
                         {
@@ -2753,7 +2753,7 @@ namespace Oxide.Plugins
                         DamageMultiplier = 1.0f,
                         FireRocketChance = 10,
                         Radius = 100f,
-                        Duration = 30,
+                        DurationSeconds =30,
                         RocketAmount = 70,
                         ItemDropControl = new ConfigData.Drops
                         {
