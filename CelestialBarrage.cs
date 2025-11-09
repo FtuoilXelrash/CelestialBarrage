@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Oxide.Core.Plugins;
 using Oxide.Core;
 using UnityEngine;
@@ -11,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.861")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.863")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -853,23 +854,38 @@ namespace Oxide.Plugins
         private void AddVisualTrail(BaseEntity rocket, string projectileType)
         {
             string effectPath = GetTrailEffectForProjectile(projectileType);
-            
+
             // Skip if no effect specified
             if (string.IsNullOrEmpty(effectPath))
                 return;
-                
+
             float baseFrequency = GetTrailFrequencyForProjectile(projectileType);
             int iterations = GetTrailDurationForProjectile(projectileType);
-            
-            // Apply randomization to ALL projectile types - each rocket gets unique timing
-            float frequency = Mathf.Max(0f, baseFrequency + UnityEngine.Random.Range(-0.3f, 0.3f));
-            
-            timer.Repeat(frequency, iterations, () => {
-                if (rocket != null && !rocket.IsDestroyed)
+
+            // Track spawn count for this rocket's trail
+            int spawnCount = 0;
+
+            // Create recursive function that generates new random delay for EACH effect spawn
+            Action spawnNextEffect = null;
+            spawnNextEffect = () => {
+                // Check if rocket is still valid and we haven't reached max iterations
+                if (rocket != null && !rocket.IsDestroyed && spawnCount < iterations)
                 {
+                    // Spawn the effect at current rocket position
                     Effect.server.Run(effectPath, rocket.transform.position, Vector3.up, null, false);
+                    spawnCount++;
+
+                    // Generate NEW random delay for THIS iteration (unique every time)
+                    // Increased randomization range (±0.5) for more organic, less mechanical effect patterns
+                    float randomizedFrequency = Mathf.Max(0f, baseFrequency + UnityEngine.Random.Range(-0.5f, 0.5f));
+
+                    // Schedule the next effect spawn with the random delay
+                    timer.Once(randomizedFrequency, spawnNextEffect);
                 }
-            });
+            };
+
+            // Start the trail effect sequence
+            spawnNextEffect();
         }
 
         private string GetTrailEffectForProjectile(string projectileType)
