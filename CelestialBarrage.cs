@@ -11,7 +11,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.854")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.855")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -995,13 +995,7 @@ namespace Oxide.Plugins
 
             if (totalDamage < configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold && !isPlayer && !isGrenadeImpact)
             {
-                // Damage too low and not a player/grenade impact - don't log this impact
-                if (configData?.Logging?.LogToConsole == true)
-                {
-                    string impactType = isPlayer ? "Player" : (isPlayerStructure ? "Structure" : "Entity");
-                    string specialType = isCatapultImpact ? " (Catapult)" : isGrenadeImpact ? " (Grenade)" : isSmokeRocket ? " (Smoke)" : "";
-                    Puts($"[DEBUG] Impact filtered due to low damage: {totalDamage:F1} < {configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold:F1} - {impactType}{specialType}");
-                }
+                // Damage too low and not a player/grenade impact - silently filter this impact
                 return;
             }
             
