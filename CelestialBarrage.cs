@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.864")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "0.0.866")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -996,7 +996,6 @@ namespace Oxide.Plugins
             float totalDamage = info?.damageTypes?.Total() ?? 0f;
             bool isCatapultImpact = damageSource.Contains("boulder") || damageSource.Contains("catapult");
             bool isGrenadeImpact = damageSource.Contains("40mm") || damageSource.Contains("grenade");
-            bool isSmokeRocket = damageSource.Contains("smoke");
 
             if (totalDamage < configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold && !isPlayer)
             {
@@ -2116,7 +2115,7 @@ namespace Oxide.Plugins
                         UseRandomTimer = true
                     },
                     InGamePlayerEventNotifications = true,
-                    MinimumPlayerCount = 1,
+                    MinimumPlayerCount = 3,
                     PerformanceMonitoring = new ConfigData.PerformanceSettings
                     {
                         EnableFPSCheck = true,
@@ -2665,7 +2664,7 @@ namespace Oxide.Plugins
                         UseRandomTimer = true
                     },
                     InGamePlayerEventNotifications = true,
-                    MinimumPlayerCount = 1,
+                    MinimumPlayerCount = 3,
                     PerformanceMonitoring = new ConfigData.PerformanceSettings
                     {
                         EnableFPSCheck = true,
