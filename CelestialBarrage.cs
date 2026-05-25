@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.6")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.7")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -345,7 +345,7 @@ namespace Oxide.Plugins
             return true;
         }
 
-        private void StartRandomOnMap(bool skipPlayerCount = false)
+        private void StartRandomOnMap(bool skipPlayerCount = false, bool skipFpsCheck = false)
         {
             // Player count check only applies to automatic events, not admin-triggered ones
             if (!skipPlayerCount && !CheckPerformanceAndPlayerCount("Automatic Event"))
@@ -358,9 +358,8 @@ namespace Oxide.Plugins
 
             Vector3 callAt = new Vector3(randomX, 0f, randomY);
 
-            // Use the random intensity selection wrapper
             var selectedSetting = GetRandomIntensitySetting();
-            StartCelestialEvent(callAt, selectedSetting.setting, "Automatic Event");
+            StartCelestialEvent(callAt, selectedSetting.setting, "Automatic Event", skipFpsCheck);
         }
 
         private (ConfigData.Settings setting, string intensity) GetRandomIntensitySetting()
@@ -377,18 +376,18 @@ namespace Oxide.Plugins
                 return (configData.IntensitySettings.Extreme, "Extreme");
         }
 
-        private bool StartOnPlayer(string playerName, ConfigData.Settings setting, string eventType, BasePlayer caller = null)
+        private bool StartOnPlayer(string playerName, ConfigData.Settings setting, string eventType, BasePlayer caller = null, bool skipFpsCheck = false)
         {
             BasePlayer player = GetPlayerByName(playerName, caller);
 
             if (player == null)
                 return false;
 
-            StartCelestialEvent(player.transform.position, setting, eventType);
+            StartCelestialEvent(player.transform.position, setting, eventType, skipFpsCheck);
             return true;
         }
 
-        private bool StartRandomOnPlayer(string playerName, string eventType, BasePlayer caller = null)
+        private bool StartRandomOnPlayer(string playerName, string eventType, BasePlayer caller = null, bool skipFpsCheck = false)
         {
             BasePlayer player = GetPlayerByName(playerName, caller);
 
@@ -396,28 +395,28 @@ namespace Oxide.Plugins
                 return false;
 
             var randomSetting = GetRandomIntensitySetting();
-            StartCelestialEvent(player.transform.position, randomSetting.setting, eventType);
+            StartCelestialEvent(player.transform.position, randomSetting.setting, eventType, skipFpsCheck);
             return true;
         }
 
-        private void StartRandomOnPosition(Vector3 position, string eventType)
+        private void StartRandomOnPosition(Vector3 position, string eventType, bool skipFpsCheck = false)
         {
             var randomSetting = GetRandomIntensitySetting();
-            StartCelestialEvent(position, randomSetting.setting, eventType);
+            StartCelestialEvent(position, randomSetting.setting, eventType, skipFpsCheck);
         }
 
         private void StartBarrage(Vector3 origin, Vector3 direction) => timer.Repeat(configData.BarrageSettings.RocketDelay, configData.BarrageSettings.NumberOfRockets, () => SpreadRocket(origin, direction));
 
-        private void StartCelestialEvent(Vector3 origin, ConfigData.Settings setting, string eventType = "Manual")
+        private void StartCelestialEvent(Vector3 origin, ConfigData.Settings setting, string eventType = "Manual", bool skipFpsCheck = false)
         {
-            // ALWAYS check FPS before starting ANY event
-            if (configData?.Options?.PerformanceMonitoring?.EnableFPSCheck == true)
+            // FPS check applies to automatic events only; admin-triggered events bypass it
+            if (!skipFpsCheck && configData?.Options?.PerformanceMonitoring?.EnableFPSCheck == true)
             {
                 float currentFPS = 1f / UnityEngine.Time.unscaledDeltaTime;
                 if (currentFPS < configData.Options.PerformanceMonitoring.MinimumFPS)
                 {
                     LogMessage($"CELESTIAL BARRAGE BLOCKED\nLow FPS detected ({currentFPS:F1} < {configData.Options.PerformanceMonitoring.MinimumFPS})\n{eventType}", "admin");
-                    return; // Block the event completely
+                    return;
                 }
             }
 
@@ -1704,7 +1703,7 @@ namespace Oxide.Plugins
                 case "onplayer":
                     if (args.Length == 2)
                     {
-                        if (StartRandomOnPlayer(args[1], "Admin on Player", player))
+                        if (StartRandomOnPlayer(args[1], "Admin on Player", player, skipFpsCheck: true))
                         {
                             if (!isSpectating)
                                 SendReply(player, string.Format(msg("calledOn", player.UserIDString), args[1]));
@@ -1714,7 +1713,7 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-                        StartRandomOnPosition(player.transform.position, "Admin on Position");
+                        StartRandomOnPosition(player.transform.position, "Admin on Position", skipFpsCheck: true);
                         if (!isSpectating)
                             SendReply(player, msg("onPos", player.UserIDString));
                     }
@@ -1723,7 +1722,7 @@ namespace Oxide.Plugins
                 case "onplayer_extreme":
                     if (args.Length == 2)
                     {
-                        if (StartOnPlayer(args[1], configData.IntensitySettings.Extreme, "Admin on Player", player))
+                        if (StartOnPlayer(args[1], configData.IntensitySettings.Extreme, "Admin on Player", player, skipFpsCheck: true))
                         {
                             if (!isSpectating)
                                 SendReply(player, msg("Extreme", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
@@ -1733,7 +1732,7 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-                        StartCelestialEvent(player.transform.position, configData.IntensitySettings.Extreme, "Admin on Position");
+                        StartCelestialEvent(player.transform.position, configData.IntensitySettings.Extreme, "Admin on Position", skipFpsCheck: true);
                         if (!isSpectating)
                             SendReply(player, msg("Extreme", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
@@ -1742,7 +1741,7 @@ namespace Oxide.Plugins
                 case "onplayer_medium":
                     if (args.Length == 2)
                     {
-                        if (StartOnPlayer(args[1], configData.IntensitySettings.Medium, "Admin on Player", player))
+                        if (StartOnPlayer(args[1], configData.IntensitySettings.Medium, "Admin on Player", player, skipFpsCheck: true))
                         {
                             if (!isSpectating)
                                 SendReply(player, msg("Medium", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
@@ -1752,7 +1751,7 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-                        StartCelestialEvent(player.transform.position, configData.IntensitySettings.Medium, "Admin on Position");
+                        StartCelestialEvent(player.transform.position, configData.IntensitySettings.Medium, "Admin on Position", skipFpsCheck: true);
                         if (!isSpectating)
                             SendReply(player, msg("Medium", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
@@ -1761,7 +1760,7 @@ namespace Oxide.Plugins
                 case "onplayer_mild":
                     if (args.Length == 2)
                     {
-                        if (StartOnPlayer(args[1], configData.IntensitySettings.Mild, "Admin on Player", player))
+                        if (StartOnPlayer(args[1], configData.IntensitySettings.Mild, "Admin on Player", player, skipFpsCheck: true))
                         {
                             if (!isSpectating)
                                 SendReply(player, msg("Mild", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
@@ -1771,7 +1770,7 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-                        StartCelestialEvent(player.transform.position, configData.IntensitySettings.Mild, "Admin on Position");
+                        StartCelestialEvent(player.transform.position, configData.IntensitySettings.Mild, "Admin on Position", skipFpsCheck: true);
                         if (!isSpectating)
                             SendReply(player, msg("Mild", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
@@ -1782,7 +1781,7 @@ namespace Oxide.Plugins
                     break;
 
                 case "random":
-                    StartRandomOnMap(skipPlayerCount: true);
+                    StartRandomOnMap(skipPlayerCount: true, skipFpsCheck: true);
                     if (!isSpectating)
                         SendReply(player, msg("randomCall", player.UserIDString));
                     break;
@@ -1807,7 +1806,7 @@ namespace Oxide.Plugins
                     return;
                 }
                 
-                StartRandomOnMap(skipPlayerCount: true);
+                StartRandomOnMap(skipPlayerCount: true, skipFpsCheck: true);
                 Puts("Random event started");
             }
             catch (System.Exception ex)
@@ -1835,7 +1834,7 @@ namespace Oxide.Plugins
                 try
                 {
                     var position = new Vector3(x, 0, z);
-                    StartRandomOnPosition(GetGroundPosition(position), "Console Command");
+                    StartRandomOnPosition(GetGroundPosition(position), "Console Command", skipFpsCheck: true);
                     Puts($"Random event started on position {x}, {position.y}, {z}");
                 }
                 catch (System.Exception ex)
