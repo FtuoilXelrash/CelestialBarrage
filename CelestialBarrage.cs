@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.5")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.6")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -345,10 +345,10 @@ namespace Oxide.Plugins
             return true;
         }
 
-        private void StartRandomOnMap()
+        private void StartRandomOnMap(bool skipPlayerCount = false)
         {
-            // Use centralized performance and player count check
-            if (!CheckPerformanceAndPlayerCount("Automatic Event"))
+            // Player count check only applies to automatic events, not admin-triggered ones
+            if (!skipPlayerCount && !CheckPerformanceAndPlayerCount("Automatic Event"))
                 return;
 
             float mapsize = (TerrainMeta.Size.x / 2) - 600f;
@@ -377,13 +377,9 @@ namespace Oxide.Plugins
                 return (configData.IntensitySettings.Extreme, "Extreme");
         }
 
-        private bool StartOnPlayer(string playerName, ConfigData.Settings setting, string eventType)
+        private bool StartOnPlayer(string playerName, ConfigData.Settings setting, string eventType, BasePlayer caller = null)
         {
-            // Check performance and player count before starting
-            if (!CheckPerformanceAndPlayerCount(eventType))
-                return false;
-
-            BasePlayer player = GetPlayerByName(playerName);
+            BasePlayer player = GetPlayerByName(playerName, caller);
 
             if (player == null)
                 return false;
@@ -392,13 +388,9 @@ namespace Oxide.Plugins
             return true;
         }
 
-        private bool StartRandomOnPlayer(string playerName, string eventType)
+        private bool StartRandomOnPlayer(string playerName, string eventType, BasePlayer caller = null)
         {
-            // Check performance and player count before starting
-            if (!CheckPerformanceAndPlayerCount(eventType))
-                return false;
-
-            BasePlayer player = GetPlayerByName(playerName);
+            BasePlayer player = GetPlayerByName(playerName, caller);
 
             if (player == null)
                 return false;
@@ -410,10 +402,6 @@ namespace Oxide.Plugins
 
         private void StartRandomOnPosition(Vector3 position, string eventType)
         {
-            // Check performance and player count before starting
-            if (!CheckPerformanceAndPlayerCount(eventType))
-                return;
-
             var randomSetting = GetRandomIntensitySetting();
             StartCelestialEvent(position, randomSetting.setting, eventType);
         }
@@ -1709,65 +1697,83 @@ namespace Oxide.Plugins
             }
                 
 
+            bool isSpectating = player.HasPlayerFlag(BasePlayer.PlayerFlags.Spectating);
+
             switch (args[0].ToLower())
             {
                 case "onplayer":
                     if (args.Length == 2)
                     {
-                        if (StartRandomOnPlayer(args[1], "Admin on Player"))
-                            SendReply(player, string.Format(msg("calledOn", player.UserIDString), args[1]));
+                        if (StartRandomOnPlayer(args[1], "Admin on Player", player))
+                        {
+                            if (!isSpectating)
+                                SendReply(player, string.Format(msg("calledOn", player.UserIDString), args[1]));
+                        }
                         else
                             SendReply(player, msg("noPlayer", player.UserIDString));
                     }
                     else
                     {
                         StartRandomOnPosition(player.transform.position, "Admin on Position");
-                        SendReply(player, msg("onPos", player.UserIDString));
+                        if (!isSpectating)
+                            SendReply(player, msg("onPos", player.UserIDString));
                     }
                     break;
 
                 case "onplayer_extreme":
                     if (args.Length == 2)
                     {
-                        if (StartOnPlayer(args[1], configData.IntensitySettings.Extreme, "Admin on Player"))
-                            SendReply(player, msg("Extreme", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
+                        if (StartOnPlayer(args[1], configData.IntensitySettings.Extreme, "Admin on Player", player))
+                        {
+                            if (!isSpectating)
+                                SendReply(player, msg("Extreme", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
+                        }
                         else
                             SendReply(player, msg("noPlayer", player.UserIDString));
                     }
                     else
                     {
                         StartCelestialEvent(player.transform.position, configData.IntensitySettings.Extreme, "Admin on Position");
-                        SendReply(player, msg("Extreme", player.UserIDString) + msg("onPos", player.UserIDString));
+                        if (!isSpectating)
+                            SendReply(player, msg("Extreme", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
                     break;
 
                 case "onplayer_medium":
                     if (args.Length == 2)
                     {
-                        if (StartOnPlayer(args[1], configData.IntensitySettings.Medium, "Admin on Player"))
-                            SendReply(player, msg("Medium", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
+                        if (StartOnPlayer(args[1], configData.IntensitySettings.Medium, "Admin on Player", player))
+                        {
+                            if (!isSpectating)
+                                SendReply(player, msg("Medium", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
+                        }
                         else
                             SendReply(player, msg("noPlayer", player.UserIDString));
                     }
                     else
                     {
                         StartCelestialEvent(player.transform.position, configData.IntensitySettings.Medium, "Admin on Position");
-                        SendReply(player, msg("Medium", player.UserIDString) + msg("onPos", player.UserIDString));
+                        if (!isSpectating)
+                            SendReply(player, msg("Medium", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
                     break;
 
                 case "onplayer_mild":
                     if (args.Length == 2)
                     {
-                        if (StartOnPlayer(args[1], configData.IntensitySettings.Mild, "Admin on Player"))
-                            SendReply(player, msg("Mild", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
+                        if (StartOnPlayer(args[1], configData.IntensitySettings.Mild, "Admin on Player", player))
+                        {
+                            if (!isSpectating)
+                                SendReply(player, msg("Mild", player.UserIDString) + string.Format(msg("calledOn", player.UserIDString), args[1]));
+                        }
                         else
                             SendReply(player, msg("noPlayer", player.UserIDString));
                     }
                     else
                     {
                         StartCelestialEvent(player.transform.position, configData.IntensitySettings.Mild, "Admin on Position");
-                        SendReply(player, msg("Mild", player.UserIDString) + msg("onPos", player.UserIDString));
+                        if (!isSpectating)
+                            SendReply(player, msg("Mild", player.UserIDString) + msg("onPos", player.UserIDString));
                     }
                     break;
 
@@ -1776,14 +1782,9 @@ namespace Oxide.Plugins
                     break;
 
                 case "random":
-                    // Check performance before starting manual random command
-                    if (!CheckPerformanceAndPlayerCount("Manual Random Command"))
-                    {
-                        SendReply(player, "Random event cancelled due to performance or player count restrictions");
-                        return;
-                    }
-                    StartRandomOnMap();
-                    SendReply(player, msg("randomCall", player.UserIDString));
+                    StartRandomOnMap(skipPlayerCount: true);
+                    if (!isSpectating)
+                        SendReply(player, msg("randomCall", player.UserIDString));
                     break;
 
                 default:
@@ -1806,14 +1807,7 @@ namespace Oxide.Plugins
                     return;
                 }
                 
-                // Check performance before starting console command
-                if (!CheckPerformanceAndPlayerCount("Console Random Command"))
-                {
-                    Puts("Random event cancelled due to performance or player count restrictions");
-                    return;
-                }
-                
-                StartRandomOnMap();
+                StartRandomOnMap(skipPlayerCount: true);
                 Puts("Random event started");
             }
             catch (System.Exception ex)
@@ -1840,13 +1834,6 @@ namespace Oxide.Plugins
             {
                 try
                 {
-                    // Check performance before starting console command
-                    if (!CheckPerformanceAndPlayerCount("Console Position Command"))
-                    {
-                        Puts("Position event cancelled due to performance or player count restrictions");
-                        return;
-                    }
-                    
                     var position = new Vector3(x, 0, z);
                     StartRandomOnPosition(GetGroundPosition(position), "Console Command");
                     Puts($"Random event started on position {x}, {position.y}, {z}");
@@ -1862,25 +1849,49 @@ namespace Oxide.Plugins
         #endregion
 
         #region Helpers
-        private BasePlayer GetPlayerByName(string name)
+        private BasePlayer GetPlayerByName(string name, BasePlayer caller = null)
         {
             BasePlayer foundPlayer = null;
             name = name.ToLower();
             int bestMatchLength = int.MaxValue;
 
-            foreach (BasePlayer player in BasePlayer.activePlayerList)
+            foreach (BasePlayer p in BasePlayer.activePlayerList)
             {
-                string currentName = player.displayName.ToLower();
-                
+                string currentName = p.displayName.ToLower();
                 if (currentName.Contains(name))
                 {
                     int remainingLength = currentName.Replace(name, "").Length;
-                    
                     if (remainingLength < bestMatchLength)
                     {
                         bestMatchLength = remainingLength;
-                        foundPlayer = player;
+                        foundPlayer = p;
                     }
+                }
+            }
+
+            foreach (BasePlayer p in BasePlayer.sleepingPlayerList)
+            {
+                string currentName = p.displayName.ToLower();
+                if (currentName.Contains(name))
+                {
+                    int remainingLength = currentName.Replace(name, "").Length;
+                    if (remainingLength < bestMatchLength)
+                    {
+                        bestMatchLength = remainingLength;
+                        foundPlayer = p;
+                    }
+                }
+            }
+
+            // Always check caller — covers vanish plugins that remove admin from activePlayerList
+            if (caller != null)
+            {
+                string currentName = caller.displayName.ToLower();
+                if (currentName.Contains(name))
+                {
+                    int remainingLength = currentName.Replace(name, "").Length;
+                    if (remainingLength < bestMatchLength)
+                        foundPlayer = caller;
                 }
             }
 
