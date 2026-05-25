@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.1")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.5")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -1903,8 +1903,20 @@ namespace Oxide.Plugins
 
         private string GetGridReference(Vector3 position)
         {
-            return MapHelper.GridToString(MapHelper.PositionToGrid(position));
-        }        
+            float worldSize = World.Size;
+            float grids = Mathf.Floor(worldSize / (1024f / 7f));
+
+            position += new Vector3(worldSize / 2f, 0, worldSize / 2f);
+
+            int col = Mathf.FloorToInt(position.x / worldSize * grids) + 1;
+            int row = Mathf.FloorToInt(grids - (position.z / worldSize * grids));
+
+            string letter = col > 26
+                ? "A" + (char)(64 + (col % 26 == 0 ? 26 : col % 26))
+                : "" + (char)(64 + (col % 26 == 0 ? 26 : col % 26));
+
+            return $"{letter}{row}";
+        }
         #endregion
 
         #region Classes 
@@ -2800,26 +2812,6 @@ namespace Oxide.Plugins
             {"invalidParam", "Invalid parameter '{0}'"},
             {"unknown", "Unknown parameter '{0}'"}
         };
-        #endregion
-
-        #region MapHelper
-        internal static class MapHelper
-        {
-            internal static Vector2Int PositionToGrid(Vector3 position)
-            {
-                float mapSize = TerrainMeta.Size.x;
-                float gridSize = mapSize / 26f;
-                int x = Mathf.FloorToInt((position.x + mapSize / 2f) / gridSize);
-                int z = Mathf.FloorToInt((mapSize / 2f - position.z) / gridSize); // Fix Z coordinate calculation
-                return new Vector2Int(x, z);
-            }
-
-            internal static string GridToString(Vector2Int grid)
-            {
-                if (grid.x < 0 || grid.x > 25 || grid.y < 0 || grid.y > 25) return "??";
-                return $"{(char)('A' + grid.x)}{grid.y}";
-            }
-        }
         #endregion
 
     }
