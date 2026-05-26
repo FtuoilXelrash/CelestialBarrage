@@ -10,8 +10,7 @@
 Transform your Rust server with **spectacular meteor shower events** that rain down rockets from the sky! Celestial Barrage brings dynamic, configurable celestial events with three intensity levels, automatic scheduling, and rewarding loot drops that will keep your players engaged and coming back for more.
 
 <div align="center">
-  <img src="meteor-shower-01.jpg" alt="Meteor shower raining down" width="45%">
-  <img src="meteor-shower-02.jpg" alt="Players during celestial barrage" width="45%">
+  <img src="meteor-shower-01.jpg" alt="Meteor shower raining down" width="75%">
   <br>
   <em>Epic meteor showers with explosive visuals and valuable loot drops</em>
 </div>
