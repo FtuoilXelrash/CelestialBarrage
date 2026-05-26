@@ -57,6 +57,8 @@ cb.onposition <x> <z>        Start event at coordinates
 CONFIGURATION
 
 The plugin creates oxide/config/CelestialBarrage.json with comprehensive configuration options.
+Existing settings are always preserved when the plugin updates — any new properties added in a future
+version will appear with their defaults without touching your customizations.
 Below is a complete reference of every available setting:
 
 GLOBAL EVENT OPTIONS:
@@ -100,8 +102,8 @@ Monitor server performance and prevent events during lag:
 }
 
 Settings:
-- EnableFPSCheck (bool): When true, the plugin checks server FPS before starting events
-- MinimumFPS (float): Minimum acceptable FPS to allow events. Events cancelled if below this (default: 30.0)
+- EnableFPSCheck (bool): When true, the plugin checks server FPS before starting automatic events. Admin manual events always bypass this check
+- MinimumFPS (float): Minimum acceptable FPS to allow automatic events. Events cancelled if below this (default: 40.0)
 
 VISUAL EFFECTS:
 
