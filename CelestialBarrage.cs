@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.7")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.10")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -576,7 +576,7 @@ namespace Oxide.Plugins
                     timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                     footer = new
                     {
-                        text = "Celestial Barrage v0.0.516 • Live Event Monitoring",
+                        text = $"Celestial Barrage v{Version} • Live Event Monitoring",
                         icon_url = "https://cdn.discordapp.com/emojis/1234567890123456789.png"
                     }
                 };
@@ -604,7 +604,7 @@ namespace Oxide.Plugins
                     timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                     footer = new
                     {
-                        text = "Celestial Barrage v0.0.570 • Event Complete",
+                        text = $"Celestial Barrage v{Version} • Event Complete",
                         icon_url = "https://cdn.discordapp.com/emojis/1234567890123456789.png"
                     }
                 };
@@ -1358,7 +1358,7 @@ namespace Oxide.Plugins
                 },
                 footer = new
                 {
-                    text = "Celestial Barrage v0.0.570",
+                    text = $"Celestial Barrage v{Version}",
                     icon_url = "https://i.imgur.com/meteor.png"
                 }
             };
@@ -1576,7 +1576,7 @@ namespace Oxide.Plugins
                 fields = embedFields.ToArray(),
                 footer = new
                 {
-                    text = "Celestial Barrage v0.0.570",
+                    text = $"Celestial Barrage v{Version}",
                     icon_url = "https://i.imgur.com/meteor.png"
                 }
             };
@@ -1644,7 +1644,7 @@ namespace Oxide.Plugins
                 timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                 footer = new
                 {
-                    text = "Celestial Barrage v0.0.510",
+                    text = $"Celestial Barrage v{Version}",
                     icon_url = "https://i.imgur.com/meteor.png"
                 }
             };
@@ -1977,101 +1977,101 @@ namespace Oxide.Plugins
         
         class ConfigData
         {
-            public BarrageOptions BarrageSettings { get; set; }
-            public ConfigOptions Options { get; set; }
-            public LoggingOptions Logging { get; set; }
-            public IntensityOptions IntensitySettings { get; set; }
+            public BarrageOptions BarrageSettings { get; set; } = new BarrageOptions();
+            public ConfigOptions Options { get; set; } = new ConfigOptions();
+            public LoggingOptions Logging { get; set; } = new LoggingOptions();
+            public IntensityOptions IntensitySettings { get; set; } = new IntensityOptions();
 
             public class BarrageOptions
             {
-                public int NumberOfRockets { get; set; }
-                public float RocketDelay { get; set; }
-                public float RocketSpread { get; set; }
+                public int NumberOfRockets { get; set; } = 20;
+                public float RocketDelay { get; set; } = 0.33f;
+                public float RocketSpread { get; set; } = 16f;
             }
 
             public class Drops
             {
-                public bool EnableItemDrop { get; set; }
-                public ItemDrop[] ItemsToDrop { get; set; }
+                public bool EnableItemDrop { get; set; } = true;
+                public ItemDrop[] ItemsToDrop { get; set; } = new ItemDrop[0];
             }
 
             public class ConfigOptions
             {
-                public bool EnableAutomaticEvents { get; set; }
-                public Timers EventTimers { get; set; }
-                public bool InGamePlayerEventNotifications { get; set; }
-                public int MinimumPlayerCount { get; set; }
-                public PerformanceSettings PerformanceMonitoring { get; set; }
-                public EffectsSettings VisualEffects { get; set; }
+                public bool EnableAutomaticEvents { get; set; } = true;
+                public Timers EventTimers { get; set; } = new Timers();
+                public bool InGamePlayerEventNotifications { get; set; } = true;
+                public int MinimumPlayerCount { get; set; } = 3;
+                public PerformanceSettings PerformanceMonitoring { get; set; } = new PerformanceSettings();
+                public EffectsSettings VisualEffects { get; set; } = new EffectsSettings();
             }
 
             public class LoggingOptions
             {
-                public bool LogDebugToConsole { get; set; }
-                public PublicChannelOptions PublicChannel { get; set; }
-                public AdminChannelOptions AdminChannel { get; set; }
-                public DiscordRateLimitOptions DiscordRateLimit { get; set; }
+                public bool LogDebugToConsole { get; set; } = false;
+                public PublicChannelOptions PublicChannel { get; set; } = new PublicChannelOptions();
+                public AdminChannelOptions AdminChannel { get; set; } = new AdminChannelOptions();
+                public DiscordRateLimitOptions DiscordRateLimit { get; set; } = new DiscordRateLimitOptions();
             }
 
             public class PublicChannelOptions
             {
-                public bool Enabled { get; set; }
+                public bool Enabled { get; set; } = false;
                 [JsonProperty(PropertyName = "Webhook URL")]
-                public string PublicWebhookURL { get; set; }
+                public string PublicWebhookURL { get; set; } = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN";
             }
 
             public class AdminChannelOptions
             {
                 [JsonProperty(PropertyName = "Enabled?")]
-                public bool Enabled { get; set; }
+                public bool Enabled { get; set; } = false;
                 [JsonProperty(PropertyName = "Include Event Messages?")]
-                public bool IncludeEventMessages { get; set; }
+                public bool IncludeEventMessages { get; set; } = false;
                 [JsonProperty(PropertyName = "Include Impact Messages?")]
-                public bool IncludeImpactMessages { get; set; }
+                public bool IncludeImpactMessages { get; set; } = true;
                 [JsonProperty(PropertyName = "Webhook URL")]
-                public string PrivateAdminWebhookURL { get; set; }
+                public string PrivateAdminWebhookURL { get; set; } = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN";
                 [JsonProperty(PropertyName = "Impact Filtering")]
-                public ImpactFilteringOptions ImpactFiltering { get; set; }
+                public ImpactFilteringOptions ImpactFiltering { get; set; } = new ImpactFilteringOptions();
             }
 
             public class ImpactFilteringOptions
             {
                 [JsonProperty(PropertyName = "Log Player Impacts?")]
-                public bool LogPlayerImpacts { get; set; }
+                public bool LogPlayerImpacts { get; set; } = true;
                 [JsonProperty(PropertyName = "Log Structure Impacts?")]
-                public bool LogStructureImpacts { get; set; }
+                public bool LogStructureImpacts { get; set; } = true;
                 [JsonProperty(PropertyName = "Minimum Impact Damage Threshold")]
-                public float MinimumDamageThreshold { get; set; }
+                public float MinimumDamageThreshold { get; set; } = 50.0f;
             }
 
             public class DiscordRateLimitOptions
             {
-                public bool EnableRateLimit { get; set; }
-                public float ImpactMessageCooldown { get; set; }
+                public bool EnableRateLimit { get; set; } = true;
+                public float ImpactMessageCooldown { get; set; } = 1.0f;
                 // Discord webhook per-channel limit is 30 messages/minute. Set this lower to avoid rate limiting.
-                // Default 20 provides safety margin (10 message buffer) for other webhooks/messages to the same channel.
-                public int MaxImpactsPerMinute { get; set; }
+                // Default 15 provides safety margin (15 message buffer) for other webhooks/messages to the same channel.
+                public int MaxImpactsPerMinute { get; set; } = 15;
             }
 
             public class PerformanceSettings
             {
-                public bool EnableFPSCheck { get; set; }
-                public float MinimumFPS { get; set; }
+                public bool EnableFPSCheck { get; set; } = true;
+                public float MinimumFPS { get; set; } = 40f;
             }
 
             public class EffectsSettings
             {
-                public bool EnableScreenShake { get; set; }
-                public bool EnableParticleTrails { get; set; }
-                public bool ShowEventMapMarkers { get; set; }
+                public bool EnableScreenShake { get; set; } = true;
+                public bool EnableParticleTrails { get; set; } = true;
+                public bool ShowEventMapMarkers { get; set; } = true;
             }
 
             public class Timers
             {
-                public int EventIntervalMinutes { get; set; }
-                public bool UseRandomTimer { get; set; }
-                public int RandomIntervalMinutesMin { get; set; }
-                public int RandomIntervalMinutesMax { get; set; }
+                public int EventIntervalMinutes { get; set; } = 360;
+                public bool UseRandomTimer { get; set; } = true;
+                public int RandomIntervalMinutesMin { get; set; } = 180;
+                public int RandomIntervalMinutesMax { get; set; } = 360;
             }
 
             public class Settings
@@ -2081,720 +2081,77 @@ namespace Oxide.Plugins
                 public float Radius { get; set; }
                 public int RocketAmount { get; set; }
                 public int DurationSeconds { get; set; }
-                public Drops ItemDropControl { get; set; }
+                public Drops ItemDropControl { get; set; } = new Drops();
             }
 
             public class IntensityOptions
             {
                 [JsonProperty(Order = 0)]
-                public float ItemDropMultiplier { get; set; }
+                public float ItemDropMultiplier { get; set; } = 1.0f;
                 [JsonProperty(Order = 1)]
-                public Settings Mild { get; set; }
+                public Settings Mild { get; set; } = new Settings
+                {
+                    DamageMultiplier = 0.25f, FireRocketChance = 30, Radius = 500f,
+                    DurationSeconds = 240, RocketAmount = 20,
+                    ItemDropControl = new Drops
+                    {
+                        EnableItemDrop = true,
+                        ItemsToDrop = new ItemDrop[]
+                        {
+                            new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "stones" },
+                            new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "metal.ore" },
+                            new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "sulfur.ore" },
+                            new ItemDrop { Maximum = 20, Minimum = 10, Shortname = "scrap" }
+                        }
+                    }
+                };
                 [JsonProperty(Order = 2)]
-                public Settings Medium { get; set; }
+                public Settings Medium { get; set; } = new Settings
+                {
+                    DamageMultiplier = 0.5f, FireRocketChance = 20, Radius = 300f,
+                    DurationSeconds = 120, RocketAmount = 45,
+                    ItemDropControl = new Drops
+                    {
+                        EnableItemDrop = true,
+                        ItemsToDrop = new ItemDrop[]
+                        {
+                            new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "stones" },
+                            new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "metal.fragments" },
+                            new ItemDrop { Maximum = 30, Minimum = 15, Shortname = "hq.metal.ore" },
+                            new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "sulfur.ore" },
+                            new ItemDrop { Maximum = 50, Minimum = 20, Shortname = "scrap" }
+                        }
+                    }
+                };
                 [JsonProperty(Order = 3)]
-                public Settings Extreme { get; set; }
+                public Settings Extreme { get; set; } = new Settings
+                {
+                    DamageMultiplier = 1.0f, FireRocketChance = 10, Radius = 100f,
+                    DurationSeconds = 30, RocketAmount = 70,
+                    ItemDropControl = new Drops
+                    {
+                        EnableItemDrop = true,
+                        ItemsToDrop = new ItemDrop[]
+                        {
+                            new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "stones" },
+                            new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "metal.fragments" },
+                            new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "hq.metal.ore" },
+                            new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "sulfur.ore" },
+                            new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "scrap" }
+                        }
+                    }
+                };
             }
         }
 
         private void LoadVariables()
         {
-            LoadConfigVariables();
-            ValidateConfig();
-            SaveConfig();
+            base.Config.Settings.ObjectCreationHandling = ObjectCreationHandling.Replace;
+            configData = Config.ReadObject<ConfigData>() ?? new ConfigData();
+            SaveConfig(configData);
         }
 
-        private void ValidateConfig()
-        {
-            bool configChanged = false;
-            Puts("========== CONFIG VALIDATION ==========");
-
-            // Validate and fix null config sections
-            if (configData == null)
-            {
-                Puts("Config is null - creating default config");
-                LoadDefaultConfig();
-                return;
-            }
-
-            // Create default config for reference
-            var defaultConfig = new ConfigData
-            {
-                BarrageSettings = new ConfigData.BarrageOptions
-                {
-                    NumberOfRockets = 20,
-                    RocketDelay = 0.33f,
-                    RocketSpread = 16f
-                },
-                Options = new ConfigData.ConfigOptions
-                {
-                    EnableAutomaticEvents = true,
-                    EventTimers = new ConfigData.Timers
-                    {
-                        EventIntervalMinutes = 360,
-                        RandomIntervalMinutesMax = 360,
-                        RandomIntervalMinutesMin = 180,
-                        UseRandomTimer = true
-                    },
-                    InGamePlayerEventNotifications = true,
-                    MinimumPlayerCount = 3,
-                    PerformanceMonitoring = new ConfigData.PerformanceSettings
-                    {
-                        EnableFPSCheck = true,
-                        MinimumFPS = 40f
-                    },
-                    VisualEffects = new ConfigData.EffectsSettings
-                    {
-                        EnableScreenShake = true,
-                        EnableParticleTrails = true,
-                        ShowEventMapMarkers = true
-                    }
-                },
-                Logging = new ConfigData.LoggingOptions
-                {
-                    LogDebugToConsole = false,
-                    PublicChannel = new ConfigData.PublicChannelOptions
-                    {
-                        Enabled = false,
-                        PublicWebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
-                    },
-                    AdminChannel = new ConfigData.AdminChannelOptions
-                    {
-                        Enabled = false,
-                        IncludeEventMessages = false,
-                        IncludeImpactMessages = true,
-                        PrivateAdminWebhookURL = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
-                        ImpactFiltering = new ConfigData.ImpactFilteringOptions
-                        {
-                            LogPlayerImpacts = true,
-                            LogStructureImpacts = true,
-                            MinimumDamageThreshold = 50.0f
-                        }
-                    },
-                    DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
-                    {
-                        EnableRateLimit = true,
-                        ImpactMessageCooldown = 1.0f,
-                        MaxImpactsPerMinute = 15
-                    }
-                },
-                IntensitySettings = new ConfigData.IntensityOptions
-                {
-                    ItemDropMultiplier = 1.0f,
-                    Mild = new ConfigData.Settings
-                    {
-                        DamageMultiplier = 0.25f,
-                        FireRocketChance = 30,
-                        Radius = 500f,
-                        DurationSeconds = 240,
-                        RocketAmount = 20,
-                        ItemDropControl = new ConfigData.Drops
-                        {
-                            EnableItemDrop = true,
-                            ItemsToDrop = new ItemDrop[]
-                            {
-                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "stones" },
-                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "metal.ore" },
-                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "sulfur.ore" },
-                                new ItemDrop { Maximum = 20, Minimum = 10, Shortname = "scrap" }
-                            }
-                        }
-                    },
-                    Medium = new ConfigData.Settings
-                    {
-                        DamageMultiplier = 0.5f,
-                        FireRocketChance = 20,
-                        Radius = 300f,
-                        DurationSeconds =120,
-                        RocketAmount = 45,
-                        ItemDropControl = new ConfigData.Drops
-                        {
-                            EnableItemDrop = true,
-                            ItemsToDrop = new ItemDrop[]
-                            {
-                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "stones" },
-                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "metal.fragments" },
-                                new ItemDrop { Maximum = 30, Minimum = 15, Shortname = "hq.metal.ore" },
-                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "sulfur.ore" },
-                                new ItemDrop { Maximum = 50, Minimum = 20, Shortname = "scrap" }
-                            }
-                        }
-                    },
-                    Extreme = new ConfigData.Settings
-                    {
-                        DamageMultiplier = 1.0f,
-                        FireRocketChance = 10,
-                        Radius = 100f,
-                        DurationSeconds =30,
-                        RocketAmount = 70,
-                        ItemDropControl = new ConfigData.Drops
-                        {
-                            EnableItemDrop = true,
-                            ItemsToDrop = new ItemDrop[]
-                            {
-                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "stones" },
-                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "metal.fragments" },
-                                new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "hq.metal.ore" },
-                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "sulfur.ore" },
-                                new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "scrap" }
-                            }
-                        }
-                    }
-                }
-            };
-
-            // Validate BarrageSettings
-            if (configData.BarrageSettings == null)
-            {
-                Puts("Adding missing BarrageSettings section");
-                configData.BarrageSettings = defaultConfig.BarrageSettings;
-                configChanged = true;
-            }
-            else
-            {
-                if (configData.BarrageSettings.NumberOfRockets == 0)
-                {
-                    Puts("Adding missing BarrageSettings.NumberOfRockets");
-                    configData.BarrageSettings.NumberOfRockets = defaultConfig.BarrageSettings.NumberOfRockets;
-                    configChanged = true;
-                }
-                if (configData.BarrageSettings.RocketDelay == 0)
-                {
-                    Puts("Adding missing BarrageSettings.RocketDelay");
-                    configData.BarrageSettings.RocketDelay = defaultConfig.BarrageSettings.RocketDelay;
-                    configChanged = true;
-                }
-                if (configData.BarrageSettings.RocketSpread == 0)
-                {
-                    Puts("Adding missing BarrageSettings.RocketSpread");
-                    configData.BarrageSettings.RocketSpread = defaultConfig.BarrageSettings.RocketSpread;
-                    configChanged = true;
-                }
-            }
-
-            // Validate per-intensity DamageMultipliers
-            if (configData.IntensitySettings.Mild.DamageMultiplier == 0)
-            {
-                Puts("Adding missing IntensitySettings.Mild.DamageMultiplier");
-                configData.IntensitySettings.Mild.DamageMultiplier = defaultConfig.IntensitySettings.Mild.DamageMultiplier;
-                configChanged = true;
-            }
-            if (configData.IntensitySettings.Medium.DamageMultiplier == 0)
-            {
-                Puts("Adding missing IntensitySettings.Medium.DamageMultiplier");
-                configData.IntensitySettings.Medium.DamageMultiplier = defaultConfig.IntensitySettings.Medium.DamageMultiplier;
-                configChanged = true;
-            }
-            if (configData.IntensitySettings.Extreme.DamageMultiplier == 0)
-            {
-                Puts("Adding missing IntensitySettings.Extreme.DamageMultiplier");
-                configData.IntensitySettings.Extreme.DamageMultiplier = defaultConfig.IntensitySettings.Extreme.DamageMultiplier;
-                configChanged = true;
-            }
-
-            // Validate Options
-            if (configData.Options == null)
-            {
-                Puts("Adding missing Options section");
-                configData.Options = defaultConfig.Options;
-                configChanged = true;
-            }
-            else
-            {
-                if (configData.IntensitySettings.ItemDropMultiplier == 0)
-                {
-                    Puts("Adding missing IntensitySettings.ItemDropMultiplier");
-                    configData.IntensitySettings.ItemDropMultiplier = defaultConfig.IntensitySettings.ItemDropMultiplier;
-                    configChanged = true;
-                }
-                if (configData.Options.MinimumPlayerCount == 0)
-                {
-                    Puts("Adding missing Options.MinimumPlayerCount");
-                    configData.Options.MinimumPlayerCount = defaultConfig.Options.MinimumPlayerCount;
-                    configChanged = true;
-                }
-
-                if (configData.Options.EventTimers == null)
-                {
-                    Puts("Adding missing Options.EventTimers section");
-                    configData.Options.EventTimers = defaultConfig.Options.EventTimers;
-                    configChanged = true;
-                }
-                else
-                {
-                    if (configData.Options.EventTimers.EventIntervalMinutes == 0)
-                    {
-                        Puts("Adding missing EventTimers.EventIntervalMinutes");
-                        configData.Options.EventTimers.EventIntervalMinutes = defaultConfig.Options.EventTimers.EventIntervalMinutes;
-                        configChanged = true;
-                    }
-                    if (configData.Options.EventTimers.RandomIntervalMinutesMin == 0)
-                    {
-                        Puts("Adding missing EventTimers.RandomIntervalMinutesMin");
-                        configData.Options.EventTimers.RandomIntervalMinutesMin = defaultConfig.Options.EventTimers.RandomIntervalMinutesMin;
-                        configChanged = true;
-                    }
-                    if (configData.Options.EventTimers.RandomIntervalMinutesMax == 0)
-                    {
-                        Puts("Adding missing EventTimers.RandomIntervalMinutesMax");
-                        configData.Options.EventTimers.RandomIntervalMinutesMax = defaultConfig.Options.EventTimers.RandomIntervalMinutesMax;
-                        configChanged = true;
-                    }
-                }
-
-                if (configData.Options.PerformanceMonitoring == null)
-                {
-                    Puts("Adding missing Options.PerformanceMonitoring section");
-                    configData.Options.PerformanceMonitoring = defaultConfig.Options.PerformanceMonitoring;
-                    configChanged = true;
-                }
-                else
-                {
-                    if (configData.Options.PerformanceMonitoring.MinimumFPS == 0)
-                    {
-                        Puts("Adding missing PerformanceMonitoring.MinimumFPS");
-                        configData.Options.PerformanceMonitoring.MinimumFPS = defaultConfig.Options.PerformanceMonitoring.MinimumFPS;
-                        configChanged = true;
-                    }
-                }
-
-                if (configData.Options.VisualEffects == null)
-                {
-                    Puts("Adding missing Options.VisualEffects section");
-                    configData.Options.VisualEffects = defaultConfig.Options.VisualEffects;
-                    configChanged = true;
-                }
-            }
-
-            // Validate Logging
-            if (configData.Logging == null)
-            {
-                Puts("Adding missing Logging section");
-                configData.Logging = defaultConfig.Logging;
-                configChanged = true;
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(configData.Logging.PublicChannel?.PublicWebhookURL))
-                {
-                    Puts("Adding missing Logging.PublicChannel.PublicWebhookURL");
-                    configData.Logging.PublicChannel.PublicWebhookURL = defaultConfig.Logging.PublicChannel.PublicWebhookURL;
-                    configChanged = true;
-                }
-                if (string.IsNullOrEmpty(configData.Logging.AdminChannel?.PrivateAdminWebhookURL))
-                {
-                    Puts("Adding missing Logging.AdminChannel.PrivateAdminWebhookURL");
-                    configData.Logging.AdminChannel.PrivateAdminWebhookURL = defaultConfig.Logging.AdminChannel.PrivateAdminWebhookURL;
-                    configChanged = true;
-                }
-
-                if (configData.Logging.DiscordRateLimit == null)
-                {
-                    Puts("Adding missing Logging.DiscordRateLimit section");
-                    configData.Logging.DiscordRateLimit = defaultConfig.Logging.DiscordRateLimit;
-                    configChanged = true;
-                }
-                else
-                {
-                    if (configData.Logging.DiscordRateLimit.ImpactMessageCooldown == 0)
-                    {
-                        Puts("Adding missing DiscordRateLimit.ImpactMessageCooldown");
-                        configData.Logging.DiscordRateLimit.ImpactMessageCooldown = defaultConfig.Logging.DiscordRateLimit.ImpactMessageCooldown;
-                        configChanged = true;
-                    }
-                    if (configData.Logging.DiscordRateLimit.MaxImpactsPerMinute == 0)
-                    {
-                        Puts("Adding missing DiscordRateLimit.MaxImpactsPerMinute");
-                        configData.Logging.DiscordRateLimit.MaxImpactsPerMinute = defaultConfig.Logging.DiscordRateLimit.MaxImpactsPerMinute;
-                        configChanged = true;
-                    }
-                }
-
-                if (configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold == 0)
-                {
-                    Puts("Adding missing AdminChannel.ImpactFiltering.MinimumDamageThreshold");
-                    configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold = defaultConfig.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold;
-                    configChanged = true;
-                }
-
-                // Validate MinimumDamageThreshold range and handle invalid values
-                if (configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold < 0f ||
-                    configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold > 1000f ||
-                    float.IsNaN(configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold) ||
-                    float.IsInfinity(configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold))
-                {
-                    float oldValue = configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold;
-                    configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold = defaultConfig.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold;
-                    Puts($"Invalid MinimumDamageThreshold value ({oldValue}), resetting to default ({configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold})");
-                    configChanged = true;
-                }
-
-                // Validate PublicChannel settings
-                if (configData.Logging.PublicChannel == null)
-                {
-                    Puts("Adding missing Logging.PublicChannel section");
-                    configData.Logging.PublicChannel = defaultConfig.Logging.PublicChannel;
-                    configChanged = true;
-                }
-
-                // Validate AdminChannel settings
-                if (configData.Logging.AdminChannel == null)
-                {
-                    Puts("Adding missing Logging.AdminChannel section");
-                    configData.Logging.AdminChannel = defaultConfig.Logging.AdminChannel;
-                    configChanged = true;
-                }
-                else
-                {
-                    // Validate ImpactFiltering within AdminChannel
-                    if (configData.Logging.AdminChannel.ImpactFiltering == null)
-                    {
-                        Puts("Adding missing Logging.AdminChannel.ImpactFiltering section");
-                        configData.Logging.AdminChannel.ImpactFiltering = defaultConfig.Logging.AdminChannel.ImpactFiltering;
-                        configChanged = true;
-                    }
-                }
-            }
-
-            // Validate IntensitySettings
-            if (configData.IntensitySettings == null)
-            {
-                Puts("Adding missing IntensitySettings section");
-                configData.IntensitySettings = defaultConfig.IntensitySettings;
-                configChanged = true;
-            }
-            else
-            {
-                if (configData.IntensitySettings.Mild == null)
-                {
-                    Puts("Adding missing IntensitySettings.Mild section");
-                    configData.IntensitySettings.Mild = defaultConfig.IntensitySettings.Mild;
-                    configChanged = true;
-                }
-                else
-                {
-                    if (configData.IntensitySettings.Mild.FireRocketChance == 0)
-                    {
-                        Puts("Adding missing Mild.FireRocketChance");
-                        configData.IntensitySettings.Mild.FireRocketChance = defaultConfig.IntensitySettings.Mild.FireRocketChance;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Mild.Radius == 0)
-                    {
-                        Puts("Adding missing Mild.Radius");
-                        configData.IntensitySettings.Mild.Radius = defaultConfig.IntensitySettings.Mild.Radius;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Mild.RocketAmount == 0)
-                    {
-                        Puts("Adding missing Mild.RocketAmount");
-                        configData.IntensitySettings.Mild.RocketAmount = defaultConfig.IntensitySettings.Mild.RocketAmount;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Mild.DurationSeconds == 0)
-                    {
-                        Puts("Adding missing Mild.DurationSeconds");
-                        configData.IntensitySettings.Mild.DurationSeconds = defaultConfig.IntensitySettings.Mild.DurationSeconds;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Mild.ItemDropControl == null)
-                    {
-                        Puts("Adding missing Mild.ItemDropControl section");
-                        configData.IntensitySettings.Mild.ItemDropControl = defaultConfig.IntensitySettings.Mild.ItemDropControl;
-                        configChanged = true;
-                    }
-                }
-
-                if (configData.IntensitySettings.Medium == null)
-                {
-                    Puts("Adding missing IntensitySettings.Medium section");
-                    configData.IntensitySettings.Medium = defaultConfig.IntensitySettings.Medium;
-                    configChanged = true;
-                }
-                else
-                {
-                    if (configData.IntensitySettings.Medium.FireRocketChance == 0)
-                    {
-                        Puts("Adding missing Medium.FireRocketChance");
-                        configData.IntensitySettings.Medium.FireRocketChance = defaultConfig.IntensitySettings.Medium.FireRocketChance;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Medium.Radius == 0)
-                    {
-                        Puts("Adding missing Medium.Radius");
-                        configData.IntensitySettings.Medium.Radius = defaultConfig.IntensitySettings.Medium.Radius;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Medium.RocketAmount == 0)
-                    {
-                        Puts("Adding missing Medium.RocketAmount");
-                        configData.IntensitySettings.Medium.RocketAmount = defaultConfig.IntensitySettings.Medium.RocketAmount;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Medium.DurationSeconds == 0)
-                    {
-                        Puts("Adding missing Medium.DurationSeconds");
-                        configData.IntensitySettings.Medium.DurationSeconds = defaultConfig.IntensitySettings.Medium.DurationSeconds;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Medium.ItemDropControl == null)
-                    {
-                        Puts("Adding missing Medium.ItemDropControl section");
-                        configData.IntensitySettings.Medium.ItemDropControl = defaultConfig.IntensitySettings.Medium.ItemDropControl;
-                        configChanged = true;
-                    }
-                }
-
-                if (configData.IntensitySettings.Extreme == null)
-                {
-                    Puts("Adding missing IntensitySettings.Extreme section");
-                    configData.IntensitySettings.Extreme = defaultConfig.IntensitySettings.Extreme;
-                    configChanged = true;
-                }
-                else
-                {
-                    if (configData.IntensitySettings.Extreme.FireRocketChance == 0)
-                    {
-                        Puts("Adding missing Extreme.FireRocketChance");
-                        configData.IntensitySettings.Extreme.FireRocketChance = defaultConfig.IntensitySettings.Extreme.FireRocketChance;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Extreme.Radius == 0)
-                    {
-                        Puts("Adding missing Extreme.Radius");
-                        configData.IntensitySettings.Extreme.Radius = defaultConfig.IntensitySettings.Extreme.Radius;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Extreme.RocketAmount == 0)
-                    {
-                        Puts("Adding missing Extreme.RocketAmount");
-                        configData.IntensitySettings.Extreme.RocketAmount = defaultConfig.IntensitySettings.Extreme.RocketAmount;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Extreme.DurationSeconds == 0)
-                    {
-                        Puts("Adding missing Extreme.DurationSeconds");
-                        configData.IntensitySettings.Extreme.DurationSeconds = defaultConfig.IntensitySettings.Extreme.DurationSeconds;
-                        configChanged = true;
-                    }
-                    if (configData.IntensitySettings.Extreme.ItemDropControl == null)
-                    {
-                        Puts("Adding missing Extreme.ItemDropControl section");
-                        configData.IntensitySettings.Extreme.ItemDropControl = defaultConfig.IntensitySettings.Extreme.ItemDropControl;
-                        configChanged = true;
-                    }
-                }
-            }
-
-            // Rest of validation code remains the same...
-            if (configData.IntensitySettings?.Mild?.ItemDropControl?.ItemsToDrop != null)
-            {
-                // Only update if the drops don't match our new structure
-                var currentMild = configData.IntensitySettings.Mild.ItemDropControl.ItemsToDrop;
-                bool needsUpdate = currentMild.Length != 4 || 
-                                 !System.Array.Exists(currentMild, x => x.Shortname == "scrap") ||
-                                 !System.Array.Exists(currentMild, x => x.Shortname == "sulfur.ore");
-                
-                if (needsUpdate)
-                {
-                    Puts("Updating Mild intensity drops to new values");
-                    configData.IntensitySettings.Mild.ItemDropControl.ItemsToDrop = new ItemDrop[]
-                    {
-                        new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "stones" },
-                        new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "metal.ore" },
-                        new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "sulfur.ore" },
-                        new ItemDrop { Maximum = 20, Minimum = 10, Shortname = "scrap" }
-                    };
-                    configChanged = true;
-                }
-            }
-
-            if (configData.IntensitySettings?.Medium?.ItemDropControl?.ItemsToDrop != null)
-            {
-                var currentMedium = configData.IntensitySettings.Medium.ItemDropControl.ItemsToDrop;
-                bool needsUpdate = currentMedium.Length != 5 || 
-                                 !System.Array.Exists(currentMedium, x => x.Shortname == "scrap") ||
-                                 !System.Array.Exists(currentMedium, x => x.Shortname == "sulfur.ore");
-                
-                if (needsUpdate)
-                {
-                    Puts("Updating Medium intensity drops to new values");
-                    configData.IntensitySettings.Medium.ItemDropControl.ItemsToDrop = new ItemDrop[]
-                    {
-                        new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "stones" },
-                        new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "metal.fragments" },
-                        new ItemDrop { Maximum = 30, Minimum = 15, Shortname = "hq.metal.ore" },
-                        new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "sulfur.ore" },
-                        new ItemDrop { Maximum = 50, Minimum = 20, Shortname = "scrap" }
-                    };
-                    configChanged = true;
-                }
-            }
-
-            if (configData.IntensitySettings?.Extreme?.ItemDropControl?.ItemsToDrop != null)
-            {
-                var currentExtreme = configData.IntensitySettings.Extreme.ItemDropControl.ItemsToDrop;
-                bool needsUpdate = currentExtreme.Length != 5 || 
-                                 System.Array.Exists(currentExtreme, x => x.Shortname == "metal.refined") ||
-                                 !System.Array.Exists(currentExtreme, x => x.Shortname == "scrap");
-                
-                if (needsUpdate)
-                {
-                    Puts("Updating Extreme intensity drops to new values");
-                    configData.IntensitySettings.Extreme.ItemDropControl.ItemsToDrop = new ItemDrop[]
-                    {
-                        new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "stones" },
-                        new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "metal.fragments" },
-                        new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "hq.metal.ore" },
-                        new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "sulfur.ore" },
-                        new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "scrap" }
-                    };
-                    configChanged = true;
-                }
-            }
-
-            if (configChanged)
-            {
-                Puts("Config validation completed - updated drop tables to v0.0.570 values");
-                SaveConfig(configData);
-            }
-            else
-            {
-                Puts("Config validation completed - no issues found");
-            }
-            Puts("======================================");
-        }
-
-        protected override void LoadDefaultConfig()
-        {
-            var config = new ConfigData
-            {
-                BarrageSettings = new ConfigData.BarrageOptions
-                {
-                    NumberOfRockets = 20,
-                    RocketDelay = 0.33f,
-                    RocketSpread = 16f
-                },
-                Options = new ConfigData.ConfigOptions
-                {
-                    EnableAutomaticEvents = true,
-                    EventTimers = new ConfigData.Timers
-                    {
-                        EventIntervalMinutes = 360,
-                        RandomIntervalMinutesMax = 360,
-                        RandomIntervalMinutesMin = 180,
-                        UseRandomTimer = true
-                    },
-                    InGamePlayerEventNotifications = true,
-                    MinimumPlayerCount = 3,
-                    PerformanceMonitoring = new ConfigData.PerformanceSettings
-                    {
-                        EnableFPSCheck = true,
-                        MinimumFPS = 40f
-                    },
-                    VisualEffects = new ConfigData.EffectsSettings
-                    {
-                        EnableScreenShake = true,
-                        EnableParticleTrails = true,
-                        ShowEventMapMarkers = true
-                    }
-                },
-                Logging = new ConfigData.LoggingOptions
-                {
-                    LogDebugToConsole = false,
-                    PublicChannel = new ConfigData.PublicChannelOptions
-                    {
-                        Enabled = false,
-                        PublicWebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
-                    },
-                    AdminChannel = new ConfigData.AdminChannelOptions
-                    {
-                        Enabled = false,
-                        IncludeEventMessages = false,
-                        IncludeImpactMessages = true,
-                        PrivateAdminWebhookURL = "https://discord.com/api/webhooks/YOUR_ADMIN_WEBHOOK_ID/YOUR_ADMIN_WEBHOOK_TOKEN",
-                        ImpactFiltering = new ConfigData.ImpactFilteringOptions
-                        {
-                            LogPlayerImpacts = true,
-                            LogStructureImpacts = true,
-                            MinimumDamageThreshold = 50.0f
-                        }
-                    },
-                    DiscordRateLimit = new ConfigData.DiscordRateLimitOptions
-                    {
-                        EnableRateLimit = true,
-                        ImpactMessageCooldown = 1.0f,
-                        MaxImpactsPerMinute = 15
-                    }
-                },
-                IntensitySettings = new ConfigData.IntensityOptions
-                {
-                    ItemDropMultiplier = 1.0f,
-                    Mild = new ConfigData.Settings
-                    {
-                        DamageMultiplier = 0.25f,
-                        FireRocketChance = 30,
-                        Radius = 500f,
-                        DurationSeconds = 240,
-                        RocketAmount = 20,
-                        ItemDropControl = new ConfigData.Drops
-                        {
-                            EnableItemDrop = true,
-                            ItemsToDrop = new ItemDrop[]
-                            {
-                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "stones" },
-                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "metal.ore" },
-                                new ItemDrop { Maximum = 500, Minimum = 250, Shortname = "sulfur.ore" },
-                                new ItemDrop { Maximum = 20, Minimum = 10, Shortname = "scrap" }
-                            }
-                        }
-                    },
-                    Medium = new ConfigData.Settings
-                    {
-                        DamageMultiplier = 0.5f,
-                        FireRocketChance = 20,
-                        Radius = 300f,
-                        DurationSeconds =120,
-                        RocketAmount = 45,
-                        ItemDropControl = new ConfigData.Drops
-                        {
-                            EnableItemDrop = true,
-                            ItemsToDrop = new ItemDrop[]
-                            {
-                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "stones" },
-                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "metal.fragments" },
-                                new ItemDrop { Maximum = 30, Minimum = 15, Shortname = "hq.metal.ore" },
-                                new ItemDrop { Maximum = 800, Minimum = 500, Shortname = "sulfur.ore" },
-                                new ItemDrop { Maximum = 50, Minimum = 20, Shortname = "scrap" }
-                            }
-                        }
-                    },
-                    Extreme = new ConfigData.Settings
-                    {
-                        DamageMultiplier = 1.0f,
-                        FireRocketChance = 10,
-                        Radius = 100f,
-                        DurationSeconds =30,
-                        RocketAmount = 70,
-                        ItemDropControl = new ConfigData.Drops
-                        {
-                            EnableItemDrop = true,
-                            ItemsToDrop = new ItemDrop[]
-                            {
-                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "stones" },
-                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "metal.fragments" },
-                                new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "hq.metal.ore" },
-                                new ItemDrop { Maximum = 1000, Minimum = 500, Shortname = "sulfur.ore" },
-                                new ItemDrop { Maximum = 100, Minimum = 50, Shortname = "scrap" }
-                            }
-                        }
-                    }
-                }
-            };
-            SaveConfig(config);
-        }
-
-        private void LoadConfigVariables() => configData = Config.ReadObject<ConfigData>();
+        protected override void LoadDefaultConfig() => SaveConfig(new ConfigData());
         void SaveConfig(ConfigData config) => Config.WriteObject(config, true);
         #endregion
 
