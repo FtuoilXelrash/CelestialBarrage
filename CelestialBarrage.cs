@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.18")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.20")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -368,16 +368,21 @@ namespace Oxide.Plugins
 
         private (ConfigData.Settings setting, string intensity) GetRandomIntensitySetting()
         {
-            // Randomly select intensity for events
-            // 50% Mild, 30% Medium, 20% Extreme
-            int randomIntensity = UnityEngine.Random.Range(1, 101);
-
-            if (randomIntensity <= 50)
+            var w = configData.IntensitySettings.SpawnWeights;
+            float total = w.MildWeight + w.MediumWeight + w.ExtremeWeight;
+            if (total <= 0f)
                 return (configData.IntensitySettings.Mild, "Mild");
-            else if (randomIntensity <= 80)
+
+            float roll = UnityEngine.Random.Range(0f, total);
+
+            if (roll < w.MildWeight)
+                return (configData.IntensitySettings.Mild, "Mild");
+            roll -= w.MildWeight;
+
+            if (roll < w.MediumWeight)
                 return (configData.IntensitySettings.Medium, "Medium");
-            else
-                return (configData.IntensitySettings.Extreme, "Extreme");
+
+            return (configData.IntensitySettings.Extreme, "Extreme");
         }
 
         private bool StartOnPlayer(string playerName, ConfigData.Settings setting, string eventType, BasePlayer caller = null, bool skipFpsCheck = false)
@@ -2067,6 +2072,16 @@ namespace Oxide.Plugins
                 public Drops ItemDropControl { get; set; } = new Drops();
             }
 
+            public class SpawnWeights
+            {
+                [JsonProperty("Mild Spawn Weight")]
+                public float MildWeight { get; set; } = 80f;
+                [JsonProperty("Medium Spawn Weight")]
+                public float MediumWeight { get; set; } = 40f;
+                [JsonProperty("Extreme Spawn Weight")]
+                public float ExtremeWeight { get; set; } = 10f;
+            }
+
             public class IntensityOptions
             {
                 [JsonProperty(Order = 0)]
@@ -2124,6 +2139,8 @@ namespace Oxide.Plugins
                         }
                     }
                 };
+                [JsonProperty(Order = 4)]
+                public SpawnWeights SpawnWeights { get; set; } = new SpawnWeights();
             }
         }
 
@@ -2141,6 +2158,12 @@ namespace Oxide.Plugins
             ValidateDuration(configData.IntensitySettings.Mild,    def.Mild);
             ValidateDuration(configData.IntensitySettings.Medium,  def.Medium);
             ValidateDuration(configData.IntensitySettings.Extreme, def.Extreme);
+
+            var w  = configData.IntensitySettings.SpawnWeights;
+            var dw = def.SpawnWeights;
+            if (w.MildWeight    <= 0f) w.MildWeight    = dw.MildWeight;
+            if (w.MediumWeight  <= 0f) w.MediumWeight  = dw.MediumWeight;
+            if (w.ExtremeWeight <= 0f) w.ExtremeWeight = dw.ExtremeWeight;
         }
 
         private void ValidateDuration(ConfigData.Settings s, ConfigData.Settings def)
