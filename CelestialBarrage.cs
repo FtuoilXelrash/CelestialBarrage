@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.20")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.22")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -430,7 +430,9 @@ namespace Oxide.Plugins
             }
 
             float radius = setting.Radius;
-            int numberOfRockets = setting.RocketAmount;
+            int numberOfRockets = configData.Options.EventTimers.UseRandomTimers
+                ? UnityEngine.Random.Range(setting.RocketAmountMin, setting.RocketAmountMax + 1)
+                : setting.RocketAmountMin;
             float duration = configData.Options.EventTimers.UseRandomTimers
                 ? UnityEngine.Random.Range(setting.DurationSecondsMin, setting.DurationSecondsMax)
                 : setting.DurationSecondsMin;
@@ -462,7 +464,7 @@ namespace Oxide.Plugins
             string startMessage = $"========== METEOR SHOWER STARTED ==========\n" +
                                 $"Type: {eventType} ({intensity})\n" +
                                 $"Location: ({origin.x:F0}, {origin.z:F0}) Grid: {gridRef}\n" +
-                                $"Stats: {numberOfRockets} rockets, {duration:F0}s duration ({setting.DurationSecondsMin:F0}-{setting.DurationSecondsMax:F0}s range), {radius}m radius\n" +
+                                $"Stats: {numberOfRockets} rockets ({setting.RocketAmountMin}-{setting.RocketAmountMax} range), {FormatDuration(duration)} duration ({FormatDuration(setting.DurationSecondsMin)}-{FormatDuration(setting.DurationSecondsMax)} range), {radius}m radius\n" +
                                 $"Teleport: {teleportCmd}\n" +
                                 $"==========================================";
 
@@ -568,7 +570,7 @@ namespace Oxide.Plugins
                         
                         new { name = "📊 **Event Statistics**", value = "", inline = false },
                         new { name = "", value = $"🚀 **Rocket Count:** `{numberOfRockets}`", inline = false },
-                        new { name = "", value = $"⏱️ **Duration:** `{duration:F0}s`", inline = false },
+                        new { name = "", value = $"⏱️ **Duration:** `{FormatDuration(duration)}`", inline = false },
                         new { name = "", value = $"📏 **Impact Radius:** `{radius}m`", inline = false },
                         
                         // SPACING BETWEEN SECTIONS
@@ -1900,6 +1902,14 @@ namespace Oxide.Plugins
             return sourcePos;
         }
 
+        private string FormatDuration(float seconds)
+        {
+            int total = Mathf.Max(0, Mathf.RoundToInt(seconds));
+            int mins = total / 60;
+            int secs = total % 60;
+            return mins > 0 ? $"{mins}m {secs}s" : $"{secs}s";
+        }
+
         private string GetGridReference(Vector3 position)
         {
             float worldSize = World.Size;
@@ -2066,7 +2076,8 @@ namespace Oxide.Plugins
                 public float DamageMultiplier { get; set; }
                 public int FireRocketChance { get; set; }
                 public float Radius { get; set; }
-                public int RocketAmount { get; set; }
+                public int RocketAmountMin { get; set; }
+                public int RocketAmountMax { get; set; }
                 public float DurationSecondsMin { get; set; }
                 public float DurationSecondsMax { get; set; }
                 public Drops ItemDropControl { get; set; } = new Drops();
@@ -2090,7 +2101,7 @@ namespace Oxide.Plugins
                 public Settings Mild { get; set; } = new Settings
                 {
                     DamageMultiplier = 0.25f, FireRocketChance = 30, Radius = 500f,
-                    DurationSecondsMin = 180f, DurationSecondsMax = 300f, RocketAmount = 20,
+                    RocketAmountMin = 10, RocketAmountMax = 25, DurationSecondsMin = 180f, DurationSecondsMax = 300f,
                     ItemDropControl = new Drops
                     {
                         EnableItemDrop = true,
@@ -2107,7 +2118,7 @@ namespace Oxide.Plugins
                 public Settings Medium { get; set; } = new Settings
                 {
                     DamageMultiplier = 0.5f, FireRocketChance = 20, Radius = 300f,
-                    DurationSecondsMin = 240f, DurationSecondsMax = 480f, RocketAmount = 45,
+                    RocketAmountMin = 30, RocketAmountMax = 60, DurationSecondsMin = 240f, DurationSecondsMax = 480f,
                     ItemDropControl = new Drops
                     {
                         EnableItemDrop = true,
@@ -2125,7 +2136,7 @@ namespace Oxide.Plugins
                 public Settings Extreme { get; set; } = new Settings
                 {
                     DamageMultiplier = 1.0f, FireRocketChance = 10, Radius = 100f,
-                    DurationSecondsMin = 300f, DurationSecondsMax = 600f, RocketAmount = 70,
+                    RocketAmountMin = 55, RocketAmountMax = 90, DurationSecondsMin = 300f, DurationSecondsMax = 600f,
                     ItemDropControl = new Drops
                     {
                         EnableItemDrop = true,
@@ -2158,6 +2169,9 @@ namespace Oxide.Plugins
             ValidateDuration(configData.IntensitySettings.Mild,    def.Mild);
             ValidateDuration(configData.IntensitySettings.Medium,  def.Medium);
             ValidateDuration(configData.IntensitySettings.Extreme, def.Extreme);
+            ValidateRocketAmount(configData.IntensitySettings.Mild,    def.Mild);
+            ValidateRocketAmount(configData.IntensitySettings.Medium,  def.Medium);
+            ValidateRocketAmount(configData.IntensitySettings.Extreme, def.Extreme);
 
             var w  = configData.IntensitySettings.SpawnWeights;
             var dw = def.SpawnWeights;
@@ -2176,6 +2190,17 @@ namespace Oxide.Plugins
             {
                 s.DurationSecondsMin = def.DurationSecondsMin;
                 s.DurationSecondsMax = def.DurationSecondsMax;
+            }
+        }
+
+        private void ValidateRocketAmount(ConfigData.Settings s, ConfigData.Settings def)
+        {
+            if (s.RocketAmountMin <= 0) s.RocketAmountMin = def.RocketAmountMin;
+            if (s.RocketAmountMax <= 0) s.RocketAmountMax = def.RocketAmountMax;
+            if (s.RocketAmountMin >= s.RocketAmountMax)
+            {
+                s.RocketAmountMin = def.RocketAmountMin;
+                s.RocketAmountMax = def.RocketAmountMax;
             }
         }
 
