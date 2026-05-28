@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.11")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.15")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -21,6 +21,7 @@ namespace Oxide.Plugins
         private Timer EventTimer = null;
         private List<Timer> RocketTimers = new List<Timer>();
         private HashSet<BaseEntity> meteorRockets = new HashSet<BaseEntity>(); // Track our meteor rockets
+        private List<(Vector3 position, float time)> recentExplosions = new List<(Vector3, float)>(); // Track recent explosion positions for impact detection
         private List<MapMarkerGenericRadius> activeMarkers = new List<MapMarkerGenericRadius>(); // Track map markers
         private List<VendingMachineMapMarker> activeVendingMarkers = new List<VendingMachineMapMarker>(); // Track vending markers for hover text
         private Dictionary<string, float> discordRateLimiter = new Dictionary<string, float>(); // Rate limit Discord messages
@@ -63,47 +64,53 @@ namespace Oxide.Plugins
 
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
         {
-            // Debug logging to help identify the issue
-            if (configData?.Logging?.LogDebugToConsole == true)
-            {
-                // Log all damage events during meteor showers for debugging
-                if (meteorRockets.Count > 0)
-                {
-                    string weaponInfo = info?.WeaponPrefab?.ShortPrefabName ?? "Unknown";
-                    string attackerInfo = info?.Initiator?.ShortPrefabName ?? "Unknown";
-                    Puts($"[DEBUG] Damage event - Weapon: {weaponInfo}, Attacker: {attackerInfo}, Damage: {info?.damageTypes?.Total():F1}, Entity: {entity?.ShortPrefabName}");
-                }
-            }
-            
-            // Check if there are any active meteor rockets nearby first (performance optimization)
-            bool nearMeteorRocket = false;
-            BaseEntity closestRocket = null;
+            float now = Time.realtimeSinceStartup;
+
+            // Purge explosion records older than 0.5 seconds
+            recentExplosions.RemoveAll(e => now - e.time > 0.5f);
+
+            // Check live rockets and recent explosion positions
+            bool nearMeteor = false;
             float closestDistance = float.MaxValue;
-            
+
             foreach (var rocket in meteorRockets)
             {
                 if (rocket != null && !rocket.IsDestroyed)
                 {
-                    float distance = Vector3.Distance(rocket.transform.position, entity.transform.position);
-                    if (distance < 50f) // Within reasonable blast radius
+                    float d = Vector3.Distance(rocket.transform.position, entity.transform.position);
+                    if (d < 50f)
                     {
-                        nearMeteorRocket = true;
-                        if (distance < closestDistance)
-                        {
-                            closestDistance = distance;
-                            closestRocket = rocket;
-                        }
+                        nearMeteor = true;
+                        if (d < closestDistance) closestDistance = d;
                     }
                 }
             }
-            
-            // Only process if near a meteor rocket
-            if (nearMeteorRocket)
+
+            if (!nearMeteor)
+            {
+                foreach (var explosion in recentExplosions)
+                {
+                    float d = Vector3.Distance(explosion.position, entity.transform.position);
+                    if (d < 50f)
+                    {
+                        nearMeteor = true;
+                        if (d < closestDistance) closestDistance = d;
+                        break;
+                    }
+                }
+            }
+
+            if (configData?.Logging?.LogDebugToConsole == true && (meteorRockets.Count > 0 || recentExplosions.Count > 0))
+            {
+                string weaponInfo = info?.WeaponPrefab?.ShortPrefabName ?? "Unknown";
+                string attackerInfo = info?.Initiator?.ShortPrefabName ?? "Unknown";
+                Puts($"[DEBUG] Damage event - Weapon: {weaponInfo}, Attacker: {attackerInfo}, Damage: {info?.damageTypes?.Total():F1}, Entity: {entity?.ShortPrefabName}, NearMeteor: {nearMeteor}");
+            }
+
+            if (nearMeteor)
             {
                 if (configData?.Logging?.LogDebugToConsole == true)
-                {
-                    Puts($"[DEBUG] Meteor impact detected - Distance: {closestDistance:F1}m, Rocket: {closestRocket?.ShortPrefabName}");
-                }
+                    Puts($"[DEBUG] Meteor impact detected - Distance: {closestDistance:F1}m");
                 LogMeteorImpact(entity, info);
             }
         }
@@ -117,6 +124,8 @@ namespace Oxide.Plugins
                 {
                     Puts($"[DEBUG] Removing tracked meteor projectile: {entity.ShortPrefabName} (Remaining: {meteorRockets.Count - 1})");
                 }
+                // Record explosion position so OnEntityTakeDamage can still match impacts after the rocket is gone
+                recentExplosions.Add((entity.transform.position, Time.realtimeSinceStartup));
                 meteorRockets.Remove(entity);
             }
         }
@@ -963,44 +972,36 @@ namespace Oxide.Plugins
             bool isPlayerStructure = false;
             bool isPlayer = false;
             string damageSource = "";
-            
+
             // Determine what weapon/projectile caused the damage
             if (info?.WeaponPrefab != null)
             {
                 damageSource = info.WeaponPrefab.ShortPrefabName;
             }
-            
-            // Check if damage is too low to log (configurable threshold)
-            // ALWAYS allow player impacts (any damage) and grenade impacts (special mechanics)
+
             float totalDamage = info?.damageTypes?.Total() ?? 0f;
             bool isCatapultImpact = damageSource.Contains("boulder") || damageSource.Contains("catapult");
             bool isGrenadeImpact = damageSource.Contains("40mm") || damageSource.Contains("grenade");
 
-            if (totalDamage < configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold && !isPlayer)
-            {
-                // Damage too low and not a player impact - silently filter this impact (applies to all projectile types)
-                return;
-            }
-            
             // Enhanced NPC filtering - check for known NPC types first
             if (IsNPCEntity(entity))
             {
                 // This is an NPC - don't log it
                 return;
             }
-            
+
             // Determine what was hit
             if (entity is BasePlayer)
             {
                 var player = entity as BasePlayer;
-                
+
                 // Additional check to filter out NPC players (scientists, etc.)
                 if (player.IsNpc || player.userID < 76561197960265728L)
                 {
                     // This is an NPC player - don't log it
                     return;
                 }
-                
+
                 entityType = "Player";
                 ownerInfo = player.displayName;
                 isPlayer = true;
@@ -1030,6 +1031,10 @@ namespace Oxide.Plugins
                 // Natural/unowned entity - don't log these
                 return;
             }
+
+            // Apply damage threshold — players always pass, structures/deployables must meet minimum
+            if (!isPlayer && totalDamage < configData.Logging.AdminChannel.ImpactFiltering.MinimumDamageThreshold)
+                return;
 
             // Log and fire hook for players or player structures only
             if (isPlayer || isPlayerStructure)
