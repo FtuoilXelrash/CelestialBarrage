@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.10")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.11")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -574,11 +574,7 @@ namespace Oxide.Plugins
                         new { name = "", value = $"🔗 **Teleport Command:** `{teleportCmd}`", inline = false }
                     },
                     timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                    footer = new
-                    {
-                        text = $"Celestial Barrage v{Version} • Live Event Monitoring",
-                        icon_url = "https://cdn.discordapp.com/emojis/1234567890123456789.png"
-                    }
+                    footer = new { text = $"Celestial Barrage v{Version}" }
                 };
             }
             else
@@ -602,11 +598,7 @@ namespace Oxide.Plugins
                         new { name = "", value = $"🔗 **Teleport Command:** `{teleportCmd}`", inline = false }
                     },
                     timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                    footer = new
-                    {
-                        text = $"Celestial Barrage v{Version} • Event Complete",
-                        icon_url = "https://cdn.discordapp.com/emojis/1234567890123456789.png"
-                    }
+                    footer = new { text = $"Celestial Barrage v{Version}" }
                 };
             }
 
@@ -1356,11 +1348,7 @@ namespace Oxide.Plugins
                         inline = false
                     }
                 },
-                footer = new
-                {
-                    text = $"Celestial Barrage v{Version}",
-                    icon_url = "https://i.imgur.com/meteor.png"
-                }
+                footer = new { text = $"Celestial Barrage v{Version}" }
             };
 
             var payload = new
@@ -1418,7 +1406,8 @@ namespace Oxide.Plugins
                 title = embed.title,
                 color = embed.color,
                 timestamp = embed.timestamp,
-                fields = fieldsList.ToArray()
+                fields = fieldsList.ToArray(),
+                footer = new { text = $"Celestial Barrage v{Version}" }
             };
 
             var payload = new
@@ -1494,7 +1483,8 @@ namespace Oxide.Plugins
                     new { name = "💀 Damage", value = damageInfo, inline = true },
                     new { name = "🚀 Weapon", value = damageSource, inline = true },
                     new { name = "🎮 Teleport", value = $"`{teleportCmd}`", inline = false }
-                }
+                },
+                footer = new { text = $"Celestial Barrage v{Version}" }
             };
 
             var payload = new
@@ -1574,11 +1564,7 @@ namespace Oxide.Plugins
                 color = color,
                 timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                 fields = embedFields.ToArray(),
-                footer = new
-                {
-                    text = $"Celestial Barrage v{Version}",
-                    icon_url = "https://i.imgur.com/meteor.png"
-                }
+                footer = new { text = $"Celestial Barrage v{Version}" }
             };
 
             var payload = new
@@ -1642,11 +1628,7 @@ namespace Oxide.Plugins
                 description = $"```{description}```",
                 color = color,
                 timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                footer = new
-                {
-                    text = $"Celestial Barrage v{Version}",
-                    icon_url = "https://i.imgur.com/meteor.png"
-                }
+                footer = new { text = $"Celestial Barrage v{Version}" }
             };
 
             var payload = new
