@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/Game-Rust-orange?style=flat-square)](https://rust.facepunch.com/)
 [![Umod](https://img.shields.io/badge/Framework-Umod-blue?style=flat-square)](https://umod.org/)
-[![Version](https://img.shields.io/badge/Version-1.0.10-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
+[![Version](https://img.shields.io/badge/Version-1.0.25-green?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/FtuoilXelrash/CelestialBarrage/total?style=flat-square)](https://github.com/FtuoilXelrash/CelestialBarrage/releases)
 
@@ -56,9 +56,9 @@ Transform your Rust server with **spectacular meteor shower events** that rain d
 
 | Command | Rockets | Duration | Radius | Best For |
 |---------|---------|----------|--------|----------|
-| `/cb onplayer_mild` | 20 | 240s | 500m | New players, learning |
-| `/cb onplayer_medium` | 45 | 120s | 300m | Balanced gameplay |
-| `/cb onplayer_extreme` | 70 | 30s | 100m | Hardcore, high risk/reward |
+| `/cb onplayer_mild` | 10-25 | 3m-5m | 500m | New players, learning |
+| `/cb onplayer_medium` | 30-60 | 4m-8m | 300m | Balanced gameplay |
+| `/cb onplayer_extreme` | 55-90 | 5m-10m | 100m | Hardcore, high risk/reward |
 
 ### Console Commands
 
@@ -81,10 +81,8 @@ The plugin creates `oxide/config/CelestialBarrage.json` with comprehensive confi
     "MinimumPlayerCount": 1,
     "InGamePlayerEventNotifications": true,
     "EventTimers": {
-      "EventInterval": 30,
-      "UseRandomTimer": false,
-      "RandomTimerMin": 15,
-      "RandomTimerMax": 45
+      "EventIntervalMinutes": 360,
+      "UseRandomTimers": true
     }
   }
 }
@@ -95,10 +93,8 @@ The plugin creates `oxide/config/CelestialBarrage.json` with comprehensive confi
 - **MinimumPlayerCount** (int): Minimum number of players required online for events to trigger (default: 1)
 - **InGamePlayerEventNotifications** (bool): When enabled, sends colored chat notifications to all players when events start/end
 - **EventTimers**:
-  - **EventInterval** (int): Minutes between automatic events in fixed mode (default: 30 minutes)
-  - **UseRandomTimer** (bool): When `true`, events trigger at random intervals instead of fixed intervals
-  - **RandomTimerMin** (int): Minimum minutes for random timer (default: 15 minutes)
-  - **RandomTimerMax** (int): Maximum minutes for random timer (default: 45 minutes)
+  - **EventIntervalMinutes** (int): Minutes between automatic events (default: 360 minutes / 6 hours)
+  - **UseRandomTimers** (bool): When `true`, each event's duration and rocket count are randomly chosen from the configured min/max ranges for that intensity type
 
 ### ⚡ Performance Monitoring
 
@@ -258,11 +254,20 @@ Each intensity level is fully customizable with its own damage multiplier.
     "ItemDropMultiplier": 1.0,
     "Mild": { ... },
     "Medium": { ... },
-    "Extreme": { ... }
+    "Extreme": { ... },
+    "Spawn Weights": {
+      "Mild Spawn Weight": 80.0,
+      "Medium Spawn Weight": 40.0,
+      "Extreme Spawn Weight": 10.0
+    }
   }
 }
 ```
 - **ItemDropMultiplier** (float): Global multiplier for all item drop quantities across all intensity levels (default: 1.0 = 100%). Scales the min/max ranges for all dropped items. Use 0.5 for 50% drops, 2.0 for double drops, etc.
+- **Spawn Weights**: Controls relative probability of each intensity type being selected for automatic events. Higher value = chosen more often. Values are relative to each other, not fixed percentages. At defaults (80/40/10), approximate odds are Mild ~62%, Medium ~31%, Extreme ~8%
+  - **Mild Spawn Weight** (float): Relative weight for Mild events (default: 80)
+  - **Medium Spawn Weight** (float): Relative weight for Medium events (default: 40)
+  - **Extreme Spawn Weight** (float): Relative weight for Extreme events (default: 10)
 
 Below are the default configurations for each intensity level:
 
@@ -273,8 +278,10 @@ Below are the default configurations for each intensity level:
     "DamageMultiplier": 0.25,
     "FireRocketChance": 30,
     "Radius": 500.0,
-    "Duration": 240,
-    "RocketAmount": 20,
+    "RocketAmountMin": 10,
+    "RocketAmountMax": 25,
+    "DurationSecondsMin": 180,
+    "DurationSecondsMax": 300,
     "ItemDropControl": {
       "EnableItemDrop": true,
       "ItemsToDrop": [
@@ -289,7 +296,7 @@ Below are the default configurations for each intensity level:
 ```
 
 **Characteristics:**
-- 20 rockets over 240 seconds (4 minutes)
+- 10-25 rockets over 3m-5m (randomly chosen each event)
 - 500m event radius
 - Fire rockets with 30% chance
 - Beginner-friendly rewards with stones, ore, and scrap
@@ -301,8 +308,10 @@ Below are the default configurations for each intensity level:
     "DamageMultiplier": 0.5,
     "FireRocketChance": 20,
     "Radius": 300.0,
-    "Duration": 120,
-    "RocketAmount": 45,
+    "RocketAmountMin": 30,
+    "RocketAmountMax": 60,
+    "DurationSecondsMin": 240,
+    "DurationSecondsMax": 480,
     "ItemDropControl": {
       "EnableItemDrop": true,
       "ItemsToDrop": [
@@ -317,7 +326,7 @@ Below are the default configurations for each intensity level:
 ```
 
 **Characteristics:**
-- 45 rockets over 120 seconds (2 minutes)
+- 30-60 rockets over 4m-8m (randomly chosen each event)
 - 300m event radius
 - Fire rockets with 20% chance
 - Balanced rewards with better loot
@@ -329,8 +338,10 @@ Below are the default configurations for each intensity level:
     "DamageMultiplier": 1.0,
     "FireRocketChance": 10,
     "Radius": 100.0,
-    "Duration": 30,
-    "RocketAmount": 70,
+    "RocketAmountMin": 55,
+    "RocketAmountMax": 90,
+    "DurationSecondsMin": 300,
+    "DurationSecondsMax": 600,
     "ItemDropControl": {
       "EnableItemDrop": true,
       "ItemsToDrop": [
@@ -345,7 +356,7 @@ Below are the default configurations for each intensity level:
 ```
 
 **Characteristics:**
-- 70 rockets over 30 seconds (high intensity!)
+- 55-90 rockets over 5m-10m (randomly chosen each event, high intensity!)
 - 100m event radius (smaller, more concentrated)
 - Fire rockets with 10% chance
 - Extreme rewards for hardcore players
@@ -354,8 +365,8 @@ Below are the default configurations for each intensity level:
 - **DamageMultiplier** (float): Damage multiplier for this intensity level (Mild: 0.25, Medium: 0.5, Extreme: 1.0)
 - **FireRocketChance** (int): Percentage (0-100) of rockets that will be fire rockets instead of regular damage rockets
 - **Radius** (float): Event radius in meters (area of effect)
-- **Duration** (int): Event duration in seconds
-- **RocketAmount** (int): Total number of rockets in the event
+- **DurationSecondsMin** / **DurationSecondsMax** (float): Duration range in seconds. When `UseRandomTimers: true`, actual duration is randomly chosen between these values each event
+- **RocketAmountMin** / **RocketAmountMax** (int): Rocket count range. When `UseRandomTimers: true`, actual rocket count is randomly chosen between these values each event
 - **ItemDropControl**:
   - **EnableItemDrop** (bool): When `true`, items drop at meteor impact locations
   - **ItemsToDrop** (array): List of items to drop with min/max quantities
@@ -366,8 +377,8 @@ Below are the default configurations for each intensity level:
 ## 🔥 Event Types
 
 ### 🔄 Automatic Events
-- **Fixed Intervals:** Consistent timing (default: 30 minutes)
-- **Random Timers:** Unpredictable events (15-45 minute range)
+- **Fixed Intervals:** Fires every `EventIntervalMinutes` (default: 360 minutes / 6 hours)
+- **Random Duration & Count:** When `UseRandomTimers: true`, each event's duration and rocket count are randomly chosen from the intensity type's configured min/max ranges
 - **Map-wide Coverage:** Events spawn across the entire map
 
 ### 🎯 Manual Events
@@ -464,7 +475,7 @@ void OnCelestialBarrageImpact(BaseCombatEntity entity, HitInfo info, string enti
 **No Rockets Spawning**
 - ✅ Check damage multiplier settings
 - ✅ Verify map boundaries
-- ✅ Confirm rocket amount > 0
+- ✅ Confirm RocketAmountMin > 0
 
 **Items Not Dropping**
 - ✅ Verify `"EnableItemDrop": true`
