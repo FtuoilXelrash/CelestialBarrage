@@ -12,7 +12,7 @@ using System.Linq;
  
 namespace Oxide.Plugins
 {
-    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.15")]
+    [Info("Celestial Barrage", "Ftuoil Xelrash", "1.0.18")]
     [Description("Create a Celestial Barrage falling from the sky")]
     class CelestialBarrage : RustPlugin
     {
@@ -296,12 +296,7 @@ namespace Oxide.Plugins
             {
                 if (configData.Options.EnableAutomaticEvents)
                 {
-                    if (configData.Options.EventTimers.UseRandomTimer)
-                    {
-                        var random = RandomRange(configData.Options.EventTimers.RandomIntervalMinutesMin, configData.Options.EventTimers.RandomIntervalMinutesMax);
-                        EventTimer = timer.Once(random * 60, () => { StartRandomOnMap(); StartEventTimer(); });
-                    }
-                    else EventTimer = timer.Repeat(configData.Options.EventTimers.EventIntervalMinutes * 60, 0, () => StartRandomOnMap());
+                    EventTimer = timer.Repeat(configData.Options.EventTimers.EventIntervalMinutes * 60, 0, () => StartRandomOnMap());
                 }
             }
             catch (System.Exception ex)
@@ -431,7 +426,9 @@ namespace Oxide.Plugins
 
             float radius = setting.Radius;
             int numberOfRockets = setting.RocketAmount;
-            float duration = setting.DurationSeconds;
+            float duration = configData.Options.EventTimers.UseRandomTimers
+                ? UnityEngine.Random.Range(setting.DurationSecondsMin, setting.DurationSecondsMax)
+                : setting.DurationSecondsMin;
             bool dropsItems = setting.ItemDropControl.EnableItemDrop;
             ItemDrop[] itemDrops = setting.ItemDropControl.ItemsToDrop;
 
@@ -460,7 +457,7 @@ namespace Oxide.Plugins
             string startMessage = $"========== METEOR SHOWER STARTED ==========\n" +
                                 $"Type: {eventType} ({intensity})\n" +
                                 $"Location: ({origin.x:F0}, {origin.z:F0}) Grid: {gridRef}\n" +
-                                $"Stats: {numberOfRockets} rockets, {duration}s duration, {radius}m radius\n" +
+                                $"Stats: {numberOfRockets} rockets, {duration:F0}s duration ({setting.DurationSecondsMin:F0}-{setting.DurationSecondsMax:F0}s range), {radius}m radius\n" +
                                 $"Teleport: {teleportCmd}\n" +
                                 $"==========================================";
 
@@ -566,7 +563,7 @@ namespace Oxide.Plugins
                         
                         new { name = "📊 **Event Statistics**", value = "", inline = false },
                         new { name = "", value = $"🚀 **Rocket Count:** `{numberOfRockets}`", inline = false },
-                        new { name = "", value = $"⏱️ **Duration:** `{duration}s`", inline = false },
+                        new { name = "", value = $"⏱️ **Duration:** `{duration:F0}s`", inline = false },
                         new { name = "", value = $"📏 **Impact Radius:** `{radius}m`", inline = false },
                         
                         // SPACING BETWEEN SECTIONS
@@ -2056,9 +2053,7 @@ namespace Oxide.Plugins
             public class Timers
             {
                 public int EventIntervalMinutes { get; set; } = 360;
-                public bool UseRandomTimer { get; set; } = true;
-                public int RandomIntervalMinutesMin { get; set; } = 180;
-                public int RandomIntervalMinutesMax { get; set; } = 360;
+                public bool UseRandomTimers { get; set; } = true;
             }
 
             public class Settings
@@ -2067,7 +2062,8 @@ namespace Oxide.Plugins
                 public int FireRocketChance { get; set; }
                 public float Radius { get; set; }
                 public int RocketAmount { get; set; }
-                public int DurationSeconds { get; set; }
+                public float DurationSecondsMin { get; set; }
+                public float DurationSecondsMax { get; set; }
                 public Drops ItemDropControl { get; set; } = new Drops();
             }
 
@@ -2079,7 +2075,7 @@ namespace Oxide.Plugins
                 public Settings Mild { get; set; } = new Settings
                 {
                     DamageMultiplier = 0.25f, FireRocketChance = 30, Radius = 500f,
-                    DurationSeconds = 240, RocketAmount = 20,
+                    DurationSecondsMin = 180f, DurationSecondsMax = 300f, RocketAmount = 20,
                     ItemDropControl = new Drops
                     {
                         EnableItemDrop = true,
@@ -2096,7 +2092,7 @@ namespace Oxide.Plugins
                 public Settings Medium { get; set; } = new Settings
                 {
                     DamageMultiplier = 0.5f, FireRocketChance = 20, Radius = 300f,
-                    DurationSeconds = 120, RocketAmount = 45,
+                    DurationSecondsMin = 240f, DurationSecondsMax = 480f, RocketAmount = 45,
                     ItemDropControl = new Drops
                     {
                         EnableItemDrop = true,
@@ -2114,7 +2110,7 @@ namespace Oxide.Plugins
                 public Settings Extreme { get; set; } = new Settings
                 {
                     DamageMultiplier = 1.0f, FireRocketChance = 10, Radius = 100f,
-                    DurationSeconds = 30, RocketAmount = 70,
+                    DurationSecondsMin = 300f, DurationSecondsMax = 600f, RocketAmount = 70,
                     ItemDropControl = new Drops
                     {
                         EnableItemDrop = true,
@@ -2135,7 +2131,29 @@ namespace Oxide.Plugins
         {
             base.Config.Settings.ObjectCreationHandling = ObjectCreationHandling.Replace;
             configData = Config.ReadObject<ConfigData>() ?? new ConfigData();
+            ValidateIntensitySettings();
             SaveConfig(configData);
+        }
+
+        private void ValidateIntensitySettings()
+        {
+            var def = new ConfigData().IntensitySettings;
+            ValidateDuration(configData.IntensitySettings.Mild,    def.Mild);
+            ValidateDuration(configData.IntensitySettings.Medium,  def.Medium);
+            ValidateDuration(configData.IntensitySettings.Extreme, def.Extreme);
+        }
+
+        private void ValidateDuration(ConfigData.Settings s, ConfigData.Settings def)
+        {
+            if (s.DurationSecondsMin <= 0f)
+                s.DurationSecondsMin = def.DurationSecondsMin;
+            if (s.DurationSecondsMax <= 0f)
+                s.DurationSecondsMax = def.DurationSecondsMax;
+            if (s.DurationSecondsMin >= s.DurationSecondsMax)
+            {
+                s.DurationSecondsMin = def.DurationSecondsMin;
+                s.DurationSecondsMax = def.DurationSecondsMax;
+            }
         }
 
         protected override void LoadDefaultConfig() => SaveConfig(new ConfigData());
